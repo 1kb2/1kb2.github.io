@@ -1,0 +1,1450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Windows XP Portfolio - Retro Desktop Experience</title>
+    <meta name="description" content="Interactive Windows XP-themed portfolio showcasing development projects, CTF writeups, and professional experience in an authentic retro desktop environment.">
+    <style>@import url('https://fonts.googleapis.com/css2?family=Tahoma:wght@400;700&display=swap');
+
+@font-face {
+  font-family: 'MS Sans Serif';
+  src: local('MS Sans Serif'), local('Microsoft Sans Serif');
+  font-display: block;
+}
+
+/* CSS Variables for XP Theme */
+:root {
+  --xp-blue: #0054e3;
+  --xp-blue-light: #4096ff;
+  --xp-blue-dark: #003cb0;
+  --xp-green: #73d216;
+  --xp-green-dark: #4e9a06;
+  --xp-orange: #f57900;
+  --xp-red: #cc0000;
+  --xp-purple: #75507b;
+  --xp-window-bg: #ece9d8;
+  --xp-taskbar-bg: #245edc;
+  --xp-taskbar-border: #4b8fdb;
+  --xp-text-black: #000000;
+  --xp-text-white: #ffffff;
+  --xp-shadow: rgba(0, 0, 0, 0.3);
+  --xp-gradient-start: #4096ff;
+  --xp-gradient-end: #0054e3;
+  --primary: var(--xp-blue);
+  --primary-foreground: var(--xp-text-white);
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  user-select: none;
+  -webkit-font-smoothing: none;
+  -moz-osx-font-smoothing: unset;
+  font-smooth: never;
+  text-rendering: geometricPrecision;
+}
+
+body {
+  font-family: 'MS Sans Serif', 'Tahoma', monospace;
+  font-size: 11px;
+  overflow: hidden;
+  height: 100vh;
+  background: linear-gradient(135deg, #0078d4 0%, #106ebe 50%, #005a9e 100%);
+  position: relative;
+  image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: crisp-edges;
+}
+
+/* XP Window Styles */
+.xp-window {
+  position: absolute;
+  min-width: 300px;
+  min-height: 200px;
+  background: #ece9d8;
+  border: 3px outset #ece9d8;
+  border-radius: 8px 8px 0 0;
+  box-shadow: 4px 4px 8px rgba(0,0,0,0.5);
+  z-index: 100;
+}
+
+.xp-window.active {
+  z-index: 200;
+}
+
+.xp-window.maximized {
+  top: 0 !important;
+  left: 0 !important;
+  width: 100vw !important;
+  height: calc(100vh - 30px) !important;
+  border-radius: 0;
+}
+
+.xp-window-header {
+  height: 24px;
+  background: linear-gradient(to bottom, var(--xp-gradient-start) 0%, var(--xp-gradient-end) 100%);
+  border-radius: 6px 6px 0 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 4px;
+  cursor: move;
+}
+
+.xp-window-header.inactive {
+  background: linear-gradient(to bottom, hsl(0, 0%, 70%) 0%, hsl(0, 0%, 60%) 100%);
+}
+
+.xp-window-title {
+  color: white;
+  font-weight: bold;
+  font-size: 11px;
+  padding-left: 4px;
+  flex: 1;
+}
+
+.xp-window-title.inactive {
+  color: hsl(0, 0%, 20%);
+}
+
+.xp-window-controls {
+  display: flex;
+}
+
+.xp-window-control {
+  width: 16px;
+  height: 14px;
+  margin: 0 1px;
+  background: #c0c0c0;
+  border: 1px outset #c0c0c0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  font-weight: bold;
+}
+
+.xp-window-control:hover {
+  background: hsl(0, 0%, 85%);
+}
+
+.xp-window-control:active {
+  border: 1px inset #c0c0c0;
+}
+
+.xp-window-control.close:hover {
+  background: #ff4444;
+  color: white;
+}
+
+.xp-window-content {
+  height: calc(100% - 24px);
+  overflow: auto;
+  padding: 12px;
+  background: #f0f0f0;
+  border-radius: 0 0 6px 6px;
+  border: 2px inset #ece9d8;
+}
+
+/* XP Desktop Styles */
+.xp-desktop {
+  width: 100vw;
+  height: 100vh;
+  background: #3a6ea5;
+  background-image: 
+    radial-gradient(circle at 25% 25%, #4a7eb5 0%, transparent 50%),
+    radial-gradient(circle at 75% 75%, #2a5e95 0%, transparent 50%),
+    linear-gradient(45deg, 
+      transparent 46%, 
+      rgba(255,255,255,0.05) 47%, 
+      rgba(255,255,255,0.05) 53%, 
+      transparent 54%),
+    linear-gradient(-45deg, 
+      transparent 46%, 
+      rgba(0,0,0,0.05) 47%, 
+      rgba(0,0,0,0.05) 53%, 
+      transparent 54%);
+  background-size: 200px 200px, 200px 200px, 10px 10px, 10px 10px;
+  position: relative;
+  overflow: hidden;
+}
+
+.xp-desktop::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 30px;
+  background-image: 
+    repeating-linear-gradient(
+      0deg,
+      transparent 0px,
+      rgba(255,255,255,0.02) 1px,
+      transparent 2px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      transparent 0px,
+      rgba(255,255,255,0.02) 1px,
+      transparent 2px
+    );
+  pointer-events: none;
+}
+
+.xp-desktop-icon {
+  position: absolute;
+  width: 64px;
+  height: 64px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: white;
+  text-shadow: 2px 2px 0px rgba(0,0,0,1), 1px 1px 0px rgba(0,0,0,1), -1px -1px 0px rgba(0,0,0,1);
+  transition: none;
+  padding: 2px;
+}
+
+.xp-desktop-icon:hover {
+  background: rgba(255,255,255,0.2);
+  border: 1px solid rgba(255,255,255,0.4);
+  border-radius: 0;
+}
+
+.xp-desktop-icon.selected {
+  background: rgba(0,0,128,0.8);
+  border: 1px dotted white;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.xp-desktop-icon .icon-image {
+  width: 32px;
+  height: 32px;
+  margin-bottom: 2px;
+  filter: drop-shadow(2px 2px 0px rgba(0,0,0,0.8)) drop-shadow(1px 1px 0px rgba(255,255,255,0.3));
+  image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: crisp-edges;
+}
+
+.xp-desktop-icon span {
+  font-size: 9px;
+  text-align: center;
+  word-wrap: break-word;
+  max-width: 60px;
+  font-family: 'MS Sans Serif', monospace;
+  line-height: 1.1;
+  font-weight: normal;
+}
+
+/* XP Taskbar Styles */
+.xp-taskbar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 30px;
+  background: linear-gradient(to bottom, #245EDC 0%, #1941A5 50%, #0F2A82 100%);
+  border-top: 2px solid #4B8FDB;
+  display: flex;
+  align-items: center;
+  z-index: 1000;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.2), 0 -1px 3px rgba(0,0,0,0.3);
+}
+
+.xp-start-button {
+  height: 22px;
+  margin: 4px;
+  padding: 0 16px 0 4px;
+  background: linear-gradient(to bottom, #008000 0%, #004000 50%, #002000 100%);
+  border: 2px outset #008000;
+  border-radius: 0;
+  color: white;
+  font-weight: bold;
+  font-size: 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  position: relative;
+  font-family: 'MS Sans Serif', monospace;
+  text-shadow: 1px 1px 0 rgba(0,0,0,0.5);
+}
+
+.xp-start-button:hover {
+  background: linear-gradient(to bottom, #00a000 0%, #006000 50%, #004000 100%);
+}
+
+.xp-start-button:active, .xp-start-button.active {
+  border: 2px inset #008000;
+}
+
+.windows-logo {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  width: 12px;
+  height: 12px;
+  margin-right: 4px;
+  gap: 1px;
+}
+
+.logo-segment {
+  width: 5px;
+  height: 5px;
+}
+
+.logo-segment.red { background: #ff0000; }
+.logo-segment.green { background: #00ff00; }
+.logo-segment.blue { background: #0000ff; }
+.logo-segment.yellow { background: #ffff00; }
+
+.xp-taskbar-buttons {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  padding: 0 4px;
+}
+
+.xp-taskbar-button {
+  height: 20px;
+  margin: 0 1px;
+  padding: 0 6px;
+  background: linear-gradient(to bottom, #4080c0 0%, #2060a0 50%, #003080 100%);
+  border: 1px outset #4080c0;
+  color: white;
+  font-size: 9px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  min-width: 100px;
+  max-width: 150px;
+  font-family: 'MS Sans Serif', monospace;
+  text-shadow: 1px 1px 0 rgba(0,0,0,0.5);
+}
+
+.xp-taskbar-button:hover {
+  background: linear-gradient(to bottom, #5090d0 0%, #3070b0 50%, #104090 100%);
+}
+
+.xp-taskbar-button.active {
+  border: 1px inset #4080c0;
+  background: linear-gradient(to bottom, #3070b0 0%, #2060a0 50%, #002070 100%);
+}
+
+.xp-taskbar-clock {
+  margin-right: 8px;
+  color: white;
+  font-size: 11px;
+}
+
+/* XP Start Menu */
+.xp-start-menu {
+  position: fixed;
+  bottom: 30px;
+  left: 0;
+  width: 280px;
+  height: 350px;
+  background: #c0c0c0;
+  border: 3px outset #c0c0c0;
+  box-shadow: 4px 4px 8px rgba(0,0,0,0.5);
+  z-index: 500;
+  font-family: 'MS Sans Serif', monospace;
+}
+
+.xp-start-menu-header {
+  height: 50px;
+  background: linear-gradient(to right, #000080 0%, #800080 100%);
+  color: white;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  font-size: 11px;
+  font-weight: bold;
+  font-family: 'MS Sans Serif', monospace;
+  text-shadow: 1px 1px 0 rgba(0,0,0,0.5);
+}
+
+.xp-start-menu-content {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.xp-start-menu-item {
+  height: 30px;
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  border-bottom: 1px inset #c0c0c0;
+  font-size: 10px;
+  font-family: 'MS Sans Serif', monospace;
+}
+
+.xp-start-menu-item:hover {
+  background: #0000ff;
+  color: white;
+}
+
+.xp-start-menu-item-icon {
+  width: 16px;
+  height: 16px;
+  margin-right: 8px;
+}
+
+.xp-start-menu-separator {
+  height: 2px;
+  background: hsl(0, 0%, 75%);
+  margin: 2px 0;
+}
+
+/* XP Context Menu */
+.xp-context-menu {
+  position: absolute;
+  background: #c0c0c0;
+  border: 3px outset #c0c0c0;
+  box-shadow: 4px 4px 8px rgba(0,0,0,0.5);
+  min-width: 120px;
+  z-index: 1000;
+  font-family: 'MS Sans Serif', monospace;
+}
+
+.xp-context-menu-item {
+  padding: 4px 12px;
+  cursor: pointer;
+  font-size: 10px;
+}
+
+.xp-context-menu-item:hover {
+  background: #0000ff;
+  color: white;
+}
+
+.xp-context-menu-separator {
+  height: 2px;
+  background: hsl(0, 0%, 75%);
+  margin: 2px 0;
+}
+
+/* Paperclip Assistant Styles */
+.xp-paperclip {
+  user-select: none;
+  pointer-events: auto;
+  position: fixed;
+  right: 20px;
+  top: 100px;
+  z-index: 999;
+}
+
+.xp-paperclip-container {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.xp-paperclip-speech-bubble {
+  background: #ffffe1;
+  border: 2px solid #000;
+  border-radius: 0;
+  padding: 8px;
+  margin-bottom: 8px;
+  position: relative;
+  max-width: 180px;
+  box-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+  font-family: 'MS Sans Serif', monospace;
+  font-size: 9px;
+  line-height: 1.2;
+}
+
+.xp-paperclip-speech-content {
+  color: #000;
+  word-wrap: break-word;
+}
+
+.xp-paperclip-speech-tail {
+  position: absolute;
+  bottom: -8px;
+  right: 20px;
+  width: 0;
+  height: 0;
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-top: 8px solid #ffffe1;
+}
+
+.xp-paperclip-speech-tail::after {
+  content: '';
+  position: absolute;
+  bottom: 2px;
+  left: -10px;
+  width: 0;
+  height: 0;
+  border-left: 10px solid transparent;
+  border-right: 10px solid transparent;
+  border-top: 10px solid #000;
+}
+
+.xp-paperclip-close {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 16px;
+  height: 16px;
+  background: #c0c0c0;
+  border: 1px outset #c0c0c0;
+  font-size: 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'MS Sans Serif', monospace;
+}
+
+.xp-paperclip-close:hover {
+  background: #ff0000;
+  color: white;
+}
+
+.xp-paperclip-close:active {
+  border: 1px inset #c0c0c0;
+}
+
+.xp-paperclip-character {
+  filter: drop-shadow(2px 2px 4px rgba(0,0,0,0.3));
+  transform-origin: center bottom;
+  animation: float 3s ease-in-out infinite;
+}
+
+/* Paperclip Animations */
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-8px); }
+}
+
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes wiggle {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(-5deg); }
+  75% { transform: rotate(5deg); }
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes wave {
+  0%, 100% { transform: rotate(0deg) scale(1); }
+  25% { transform: rotate(-10deg) scale(1.1); }
+  50% { transform: rotate(10deg) scale(1.1); }
+  75% { transform: rotate(-5deg) scale(1.05); }
+}
+
+@keyframes blink {
+  0%, 90%, 100% { opacity: 1; }
+  95% { opacity: 0.3; }
+}
+
+.xp-paperclip-character.bounce {
+  animation: bounce 1s ease-in-out;
+}
+
+.xp-paperclip-character.wiggle {
+  animation: wiggle 1s ease-in-out;
+}
+
+.xp-paperclip-character.spin {
+  animation: spin 1s ease-in-out;
+}
+
+.xp-paperclip-character.wave {
+  animation: wave 1s ease-in-out;
+}
+
+.xp-paperclip-character.blink {
+  animation: blink 1s ease-in-out;
+}
+
+/* Portfolio Content Styles */
+.xp-portfolio-section {
+  padding: 12px;
+  font-family: 'MS Sans Serif', monospace;
+}
+
+.xp-portfolio-section h2 {
+  color: #000080;
+  border-bottom: 2px inset #c0c0c0;
+  padding-bottom: 2px;
+  margin-bottom: 12px;
+  font-weight: bold;
+  font-size: 12px;
+  text-decoration: underline;
+}
+
+.xp-portfolio-section h3 {
+  color: #000080;
+  font-size: 11px;
+  font-weight: bold;
+  margin: 8px 0 4px 0;
+}
+
+.xp-portfolio-section p, .xp-portfolio-section li {
+  font-size: 10px;
+  line-height: 1.2;
+  color: #000;
+  font-family: 'MS Sans Serif', monospace;
+}
+
+.xp-portfolio-section strong {
+  color: #800000;
+}
+
+.xp-projects-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.xp-project-card {
+  background: #c0c0c0;
+  border: 2px outset #c0c0c0;
+  border-radius: 0;
+  padding: 8px;
+  box-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+  margin-bottom: 8px;
+  font-family: 'MS Sans Serif', monospace;
+}
+
+.xp-project-card h3 {
+  color: #0066CC;
+  margin-bottom: 8px;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.xp-experience-item {
+  background: #c0c0c0;
+  border: 2px outset #c0c0c0;
+  border-radius: 0;
+  padding: 8px;
+  margin-bottom: 8px;
+  box-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+  font-family: 'MS Sans Serif', monospace;
+}
+
+.xp-experience-item h3 {
+  color: #0066CC;
+  margin-bottom: 4px;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.xp-experience-date {
+  font-size: 10px;
+  color: hsl(0, 0%, 53%);
+}
+
+/* File Explorer Styles */
+.xp-file-explorer {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  font-family: 'MS Sans Serif', monospace;
+}
+
+.xp-explorer-toolbar {
+  height: 28px;
+  background: #c0c0c0;
+  border-bottom: 2px inset #c0c0c0;
+  display: flex;
+  align-items: center;
+  padding: 0 6px;
+}
+
+.xp-explorer-button {
+  height: 20px;
+  padding: 0 6px;
+  background: #c0c0c0;
+  border: 1px outset #c0c0c0;
+  margin-right: 2px;
+  cursor: pointer;
+  font-size: 9px;
+  font-family: 'MS Sans Serif', monospace;
+}
+
+.xp-explorer-button:hover {
+  background: hsl(0, 0%, 85%);
+}
+
+.xp-explorer-button:active {
+  border: 1px inset #c0c0c0;
+}
+
+.xp-explorer-content {
+  flex: 1;
+  display: flex;
+}
+
+.xp-explorer-sidebar {
+  width: 200px;
+  background: white;
+  border-right: 1px solid hsl(0, 0%, 75%);
+  overflow-y: auto;
+}
+
+.xp-explorer-main {
+  flex: 1;
+  background: white;
+  padding: 6px;
+  overflow-y: auto;
+  font-family: 'MS Sans Serif', monospace;
+  font-size: 9px;
+}
+
+.xp-tree-item {
+  padding: 1px 6px;
+  cursor: pointer;
+  font-size: 9px;
+  font-family: 'MS Sans Serif', monospace;
+}
+
+.xp-tree-item:hover {
+  background: #0000ff;
+  color: white;
+}
+
+.xp-tree-item.selected {
+  background: #000080;
+  color: white;
+}
+
+/* Hidden class for toggling visibility */
+.hidden {
+  display: none !important;
+}</style>
+    <link href="https://fonts.googleapis.com/css2?family=Tahoma:wght@400;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div id="app">
+        <!-- Desktop -->
+        <div class="xp-desktop" id="desktop">
+            <!-- Desktop Icons -->
+            <div class="xp-desktop-icon" id="icon-about" style="left: 20px; top: 20px;" data-window="about">
+                <div class="icon-image" data-icon="about"></div>
+                <span>About Me</span>
+            </div>
+            <div class="xp-desktop-icon" id="icon-projects" style="left: 20px; top: 110px;" data-window="projects">
+                <div class="icon-image" data-icon="projects"></div>
+                <span>Projects</span>
+            </div>
+            <div class="xp-desktop-icon" id="icon-ctf" style="left: 20px; top: 200px;" data-window="ctf">
+                <div class="icon-image" data-icon="ctf"></div>
+                <span>CTF Writeups</span>
+            </div>
+            <div class="xp-desktop-icon" id="icon-experience" style="left: 20px; top: 290px;" data-window="experience">
+                <div class="icon-image" data-icon="experience"></div>
+                <span>Experience</span>
+            </div>
+            <div class="xp-desktop-icon" id="icon-explorer" style="left: 20px; top: 380px;" data-window="explorer">
+                <div class="icon-image" data-icon="explorer"></div>
+                <span>File Explorer</span>
+            </div>
+        </div>
+
+        <!-- Windows Container -->
+        <div id="windows-container"></div>
+
+        <!-- Start Menu -->
+        <div class="xp-start-menu" id="start-menu" style="display: none;">
+            <div class="xp-start-menu-header">
+                <span>Portfolio OS</span>
+            </div>
+            <div class="xp-start-menu-content">
+                <div class="xp-start-menu-item" data-window="about">📄 About Me</div>
+                <div class="xp-start-menu-item" data-window="projects">📁 Projects</div>
+                <div class="xp-start-menu-item" data-window="ctf">🔐 CTF Writeups</div>
+                <div class="xp-start-menu-item" data-window="experience">💼 Experience</div>
+                <div class="xp-start-menu-item" data-window="explorer">🗂️ File Explorer</div>
+            </div>
+        </div>
+
+        <!-- Taskbar -->
+        <div class="xp-taskbar">
+            <button class="xp-start-button" id="start-button">
+                <div class="windows-logo">
+                    <div class="logo-segment red"></div>
+                    <div class="logo-segment green"></div>
+                    <div class="logo-segment blue"></div>
+                    <div class="logo-segment yellow"></div>
+                </div>
+                Start
+            </button>
+            <div class="xp-taskbar-buttons" id="taskbar-buttons"></div>
+            <div class="xp-taskbar-clock" id="clock">12:00 PM</div>
+        </div>
+
+        <!-- Context Menu -->
+        <div class="xp-context-menu" id="context-menu" style="display: none;">
+            <div class="xp-context-menu-item">Refresh</div>
+            <div class="xp-context-menu-item">Properties</div>
+        </div>
+
+        <!-- Paperclip Assistant -->
+        <div class="xp-paperclip" id="paperclip">
+            <div class="xp-paperclip-container">
+                <div class="xp-paperclip-speech-bubble">
+                    <div class="xp-paperclip-speech-content" id="paperclip-message">
+                        Hi! I'm Starry, your file navigation assistant. Need help opening files?
+                    </div>
+                    <div class="xp-paperclip-speech-tail"></div>
+                    <button class="xp-paperclip-close" id="paperclip-close">×</button>
+                </div>
+                
+                <div class="xp-paperclip-character" id="paperclip-character">
+                    <svg width="60" height="80" viewBox="0 0 60 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <!-- 12-pointed star body -->
+                        <polygon points="30,10 32,20 40,18 34,25 44,28 36,32 42,40 34,36 32,46 28,36 20,40 26,32 16,28 26,25 20,18 28,20" 
+                                 fill="#C0C0C0" stroke="#808080" stroke-width="2"/>
+                        
+                        <!-- Inner star highlight -->
+                        <polygon points="30,15 31,22 36,21 32,26 38,28 33,30 36,36 32,33 31,40 29,33 24,36 27,30 22,28 28,26 24,21 29,22" 
+                                 fill="#E0E0E0" stroke="none"/>
+                        
+                        <!-- Eyes -->
+                        <circle cx="26" cy="28" r="2" fill="#000"/>
+                        <circle cx="34" cy="28" r="2" fill="#000"/>
+                        <circle cx="26.5" cy="27.5" r="0.8" fill="#fff"/>
+                        <circle cx="34.5" cy="27.5" r="0.8" fill="#fff"/>
+                        
+                        <!-- Mouth -->
+                        <path d="M24 34 Q30 37 36 34" stroke="#000" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+                        
+                        <!-- Arms/hands - smaller stars -->
+                        <polygon points="15,45 16,47 18,46 17,48 20,49 17,50 18,52 16,51 15,53 14,51 12,52 13,50 10,49 13,48 12,46 14,47" 
+                                 fill="#C0C0C0" stroke="#808080" stroke-width="1"/>
+                        <polygon points="45,45 46,47 48,46 47,48 50,49 47,50 48,52 46,51 45,53 44,51 42,52 43,50 40,49 43,48 42,46 44,47" 
+                                 fill="#C0C0C0" stroke="#808080" stroke-width="1"/>
+                                 
+                        <!-- Star sparkles around the character -->
+                        <polygon points="12,15 12.5,16 13.5,15.8 13,17 14,17.5 13,18 13.5,19 12.5,18.5 12,19.5 11.5,18.5 10.5,19 11,18 10,17.5 11,17 10.5,15.8 11.5,16" 
+                                 fill="#FFFF00" opacity="0.8"/>
+                        <polygon points="48,20 48.3,20.8 49.2,20.6 48.8,21.5 49.5,22 48.8,22.5 49.2,23.4 48.3,23 48,24 47.7,23 46.8,23.4 47.2,22.5 46.5,22 47.2,21.5 46.8,20.6 47.7,20.8" 
+                                 fill="#FFFF00" opacity="0.8"/>
+                        <polygon points="52,38 52.2,38.6 53,38.5 52.6,39.2 53.2,39.6 52.6,40 53,40.7 52.2,40.4 52,41 51.8,40.4 51,40.7 51.4,40 50.8,39.6 51.4,39.2 51,38.5 51.8,38.6" 
+                                 fill="#FFFF00" opacity="0.8"/>
+                        <polygon points="8,35 8.2,35.6 9,35.5 8.6,36.2 9.2,36.6 8.6,37 9,37.7 8.2,37.4 8,38 7.8,37.4 7,37.7 7.4,37 6.8,36.6 7.4,36.2 7,35.5 7.8,35.6" 
+                                 fill="#FFFF00" opacity="0.8"/></svg>
+                </div>
+            </div>
+        </div>
+    </div><script>
+// Windows XP Portfolio - Static Frontend Version
+// Global state
+let windows = {};
+let nextZIndex = 100;
+let activeWindowId = null;
+let startMenuOpen = false;
+let selectedIcon = null;
+let paperclipVisible = true;
+
+// Portfolio data
+const portfolioData = {
+  about: {
+    title: "About Me - Portfolio",
+    content: `
+      <div class="xp-portfolio-section">
+        <h2>About Me</h2>
+        <p>Welcome to my retro Windows XP portfolio! I'm a passionate developer with expertise in:</p>
+        <ul>
+          <li><strong>Frontend Development:</strong> React, TypeScript, HTML5, CSS3</li>
+          <li><strong>Backend Development:</strong> Node.js, Express, Python</li>
+          <li><strong>Databases:</strong> PostgreSQL, MongoDB</li>
+          <li><strong>Cybersecurity:</strong> CTF competitions, penetration testing</li>
+          <li><strong>DevOps:</strong> Docker, CI/CD, Cloud platforms</li>
+        </ul>
+        <h3>Experience</h3>
+        <p>With several years of experience in software development and cybersecurity, I enjoy creating innovative solutions and participating in security challenges.</p>
+        <h3>Interests</h3>
+        <p>Beyond coding, I'm passionate about retro computing, game development, and contributing to open-source projects.</p>
+      </div>
+    `
+  },
+  projects: {
+    title: "Projects - Portfolio",
+    content: `
+      <div class="xp-portfolio-section">
+        <h2>Featured Projects</h2>
+        <div class="xp-projects-grid">
+          <div class="xp-project-card">
+            <h3>Windows XP Portfolio</h3>
+            <p><strong>Tech Stack:</strong> React, TypeScript, CSS3</p>
+            <p>Interactive Windows XP-themed portfolio with authentic retro styling, draggable windows, and animated assistant.</p>
+          </div>
+          <div class="xp-project-card">
+            <h3>E-Commerce Platform</h3>
+            <p><strong>Tech Stack:</strong> Node.js, PostgreSQL, React</p>
+            <p>Full-stack e-commerce solution with user authentication, payment processing, and admin dashboard.</p>
+          </div>
+          <div class="xp-project-card">
+            <h3>Security Scanner Tool</h3>
+            <p><strong>Tech Stack:</strong> Python, Flask, SQLAlchemy</p>
+            <p>Automated vulnerability scanner for web applications with detailed reporting and remediation suggestions.</p>
+          </div>
+          <div class="xp-project-card">
+            <h3>Real-time Chat App</h3>
+            <p><strong>Tech Stack:</strong> Socket.io, Express, MongoDB</p>
+            <p>Multi-room chat application with real-time messaging, file sharing, and user presence indicators.</p>
+          </div>
+        </div>
+      </div>
+    `
+  },
+  ctf: {
+    title: "CTF Writeups - Portfolio",
+    content: `
+      <div class="xp-portfolio-section">
+        <h2>CTF Writeups & Security Research</h2>
+        <div class="xp-project-card">
+          <h3>HackTheBox - Machine: Legacy</h3>
+          <p><strong>Difficulty:</strong> Easy | <strong>Points:</strong> 20</p>
+          <p>Exploited MS08-067 vulnerability in Windows XP system. Used Metasploit to gain initial access and escalated privileges through token impersonation.</p>
+          <p><strong>Tools Used:</strong> Nmap, Metasploit, Meterpreter</p>
+        </div>
+        <div class="xp-project-card">
+          <h3>PicoCTF - Web Exploitation</h3>
+          <p><strong>Challenge:</strong> SQL Injection | <strong>Points:</strong> 150</p>
+          <p>Identified and exploited blind SQL injection vulnerability to extract sensitive database information using time-based techniques.</p>
+          <p><strong>Tools Used:</strong> Burp Suite, SQLMap, Python</p>
+        </div>
+        <div class="xp-project-card">
+          <h3>TryHackMe - Blue Room</h3>
+          <p><strong>Topic:</strong> Windows Exploitation | <strong>Difficulty:</strong> Easy</p>
+          <p>Comprehensive walkthrough of EternalBlue exploit (MS17-010) with post-exploitation techniques and defense strategies.</p>
+          <p><strong>Tools Used:</strong> Nmap, Metasploit, Mimikatz</p>
+        </div>
+      </div>
+    `
+  },
+  experience: {
+    title: "Experience - Portfolio",
+    content: `
+      <div class="xp-portfolio-section">
+        <h2>Professional Experience</h2>
+        <div class="xp-experience-item">
+          <h3>Senior Full Stack Developer</h3>
+          <div class="xp-experience-date">2022 - Present | TechCorp Solutions</div>
+          <p>Lead development of enterprise web applications using React and Node.js. Mentored junior developers and implemented CI/CD pipelines that reduced deployment time by 60%.</p>
+        </div>
+        <div class="xp-experience-item">
+          <h3>Cybersecurity Analyst</h3>
+          <div class="xp-experience-date">2020 - 2022 | SecureNet Inc.</div>
+          <p>Conducted penetration testing and vulnerability assessments for Fortune 500 clients. Discovered and reported 50+ security vulnerabilities with 95% fix rate.</p>
+        </div>
+        <div class="xp-experience-item">
+          <h3>Software Developer</h3>
+          <div class="xp-experience-date">2018 - 2020 | StartupTech</div>
+          <p>Developed and maintained full-stack applications using Python/Django and React. Collaborated with cross-functional teams to deliver features on tight deadlines.</p>
+        </div>
+        <div class="xp-experience-item">
+          <h3>Junior Developer Intern</h3>
+          <div class="xp-experience-date">2017 - 2018 | CodeCraft Studios</div>
+          <p>Gained hands-on experience in web development, database design, and agile methodologies. Contributed to multiple client projects and learned industry best practices.</p>
+        </div>
+      </div>
+    `
+  },
+  explorer: {
+    title: "Portfolio Explorer",
+    content: `
+      <div class="xp-file-explorer">
+        <div class="xp-explorer-toolbar">
+          <button class="xp-explorer-button">Back</button>
+          <button class="xp-explorer-button">Forward</button>
+          <button class="xp-explorer-button">Up</button>
+          <button class="xp-explorer-button">Refresh</button>
+        </div>
+        <div class="xp-explorer-content">
+          <div class="xp-explorer-sidebar">
+            <div class="xp-tree-item">📁 Portfolio</div>
+            <div class="xp-tree-item" style="padding-left: 20px;">📄 About Me</div>
+            <div class="xp-tree-item" style="padding-left: 20px;">📁 Projects</div>
+            <div class="xp-tree-item" style="padding-left: 20px;">🔐 CTF Writeups</div>
+            <div class="xp-tree-item" style="padding-left: 20px;">💼 Experience</div>
+            <div class="xp-tree-item" style="padding-left: 20px;">📧 Contact</div>
+          </div>
+          <div class="xp-explorer-main">
+            <h3>Portfolio File Explorer</h3>
+            <p>Navigate through the portfolio sections using the sidebar or double-click the desktop icons.</p>
+            <br>
+            <p><strong>Available Sections:</strong></p>
+            <ul>
+              <li>About Me - Personal information and skills</li>
+              <li>Projects - Featured development work</li>
+              <li>CTF Writeups - Security challenge solutions</li>
+              <li>Experience - Professional background</li>
+            </ul>
+            <br>
+            <p>Use the toolbar buttons to navigate or refresh the current view.</p>
+          </div>
+        </div>
+      </div>
+    `
+  }
+};
+
+// Paperclip messages
+const paperclipMessages = [
+  "Hi! I'm Starry, your file navigation assistant. Need help opening files?",
+  "Double-click the About Me icon to learn more about the developer!",
+  "Try opening the Projects folder to see coding work and demos.",
+  "The CTF Writeups file contains cybersecurity challenge solutions.",
+  "Open the Experience document to view professional background.",
+  "The File Explorer shows all available portfolio sections.",
+  "Click any desktop icon twice quickly to open that file or folder.",
+  "Each icon represents a different section of content to explore.",
+  "Want to see technical skills? Open the About Me file first.",
+  "The Projects folder has interactive demos and code samples.",
+  "CTF Writeups contains detailed security analysis and solutions.",
+  "Experience file shows work history and professional achievements.",
+  "File Explorer lets you browse through all portfolio content.",
+  "Try opening multiple files at once - they'll appear as separate windows.",
+  "Each file contains unique content worth exploring in detail.",
+  "Pro tip: You can have several files open simultaneously for easy comparison.",
+  "My 12 points represent different file types you can open here!",
+  "I'm here to help you navigate and access all the portfolio files!"
+];
+
+// Utility functions
+function generateId() {
+  return 'window_' + Math.random().toString(36).substr(2, 9);
+}
+
+function updateClock() {
+  const now = new Date();
+  const timeString = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  document.getElementById('clock').textContent = timeString;
+}
+
+function createDesktopIcons() {
+  const iconConfigs = {
+    about: { color: '#4096FF', type: 'about' },
+    projects: { color: '#FF6C94', type: 'projects' },
+    ctf: { color: '#FF4444', type: 'ctf' },
+    experience: { color: '#00BC48', type: 'experience' },
+    explorer: { color: '#FFC433', type: 'explorer' }
+  };
+
+  Object.keys(iconConfigs).forEach(iconId => {
+    const iconEl = document.querySelector(`[data-icon="${iconId}"]`);
+    if (iconEl) {
+      iconEl.innerHTML = getDesktopIconSVG(iconConfigs[iconId].color, iconConfigs[iconId].type);
+    }
+  });
+}
+
+function getDesktopIconSVG(color, iconType) {
+  let iconContent = '';
+  
+  switch(iconType) {
+    case 'about':
+      iconContent = `
+        <rect x="12" y="8" width="8" height="8" fill="#ffdbac" stroke="#000" stroke-width="0.5"/>
+        <rect x="14" y="10" width="2" height="2" fill="#000"/>
+        <rect x="18" y="10" width="2" height="2" fill="#000"/>
+        <rect x="15" y="13" width="2" height="2" fill="#000"/>
+        <rect x="10" y="18" width="12" height="10" fill="#0000ff" stroke="#000" stroke-width="0.5"/>
+        <rect x="12" y="20" width="8" height="2" fill="#fff"/>
+      `;
+      break;
+    case 'projects':
+      iconContent = `
+        <rect x="4" y="8" width="24" height="16" fill="#c0c0c0" stroke="#000" stroke-width="0.5"/>
+        <rect x="6" y="10" width="20" height="2" fill="#000080"/>
+        <rect x="6" y="14" width="16" height="1" fill="#000"/>
+        <rect x="6" y="16" width="12" height="1" fill="#000"/>
+        <rect x="6" y="18" width="14" height="1" fill="#000"/>
+        <rect x="6" y="20" width="10" height="1" fill="#000"/>
+      `;
+      break;
+    case 'ctf':
+      iconContent = `
+        <rect x="6" y="8" width="20" height="16" fill="#800000" stroke="#000" stroke-width="0.5"/>
+        <rect x="12" y="12" width="8" height="8" fill="#ffff00" stroke="#000" stroke-width="0.5"/>
+        <rect x="14" y="14" width="4" height="4" fill="#000"/>
+        <rect x="15" y="15" width="2" height="2" fill="#ff0000"/>
+        <rect x="8" y="6" width="2" height="4" fill="#008000"/>
+        <rect x="22" y="6" width="2" height="4" fill="#008000"/>
+      `;
+      break;
+    case 'experience':
+      iconContent = `
+        <rect x="6" y="8" width="20" height="16" fill="#ffffff" stroke="#000" stroke-width="0.5"/>
+        <rect x="8" y="4" width="16" height="8" fill="#800000" stroke="#000" stroke-width="0.5"/>
+        <rect x="10" y="6" width="12" height="2" fill="#ffff00"/>
+        <rect x="8" y="12" width="16" height="1" fill="#000"/>
+        <rect x="8" y="14" width="12" height="1" fill="#000"/>
+        <rect x="8" y="16" width="14" height="1" fill="#000"/>
+        <rect x="8" y="18" width="10" height="1" fill="#000"/>
+      `;
+      break;
+    case 'explorer':
+      iconContent = `
+        <rect x="4" y="12" width="24" height="12" fill="#ffff00" stroke="#000" stroke-width="0.5"/>
+        <rect x="4" y="10" width="12" height="4" fill="#008000" stroke="#000" stroke-width="0.5"/>
+        <rect x="6" y="16" width="4" height="2" fill="#0000ff"/>
+        <rect x="12" y="16" width="4" height="2" fill="#0000ff"/>
+        <rect x="18" y="16" width="4" height="2" fill="#0000ff"/>
+        <rect x="6" y="20" width="4" height="2" fill="#ff0000"/>
+        <rect x="12" y="20" width="4" height="2" fill="#ff0000"/>
+      `;
+      break;
+    default:
+      iconContent = `<rect x="8" y="8" width="16" height="16" fill="#c0c0c0" stroke="#000" stroke-width="0.5"/>`;
+  }
+
+  return `<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" style="image-rendering: pixelated;">
+    <defs>
+      <filter id="retro-shadow" x="-20%" y="-20%" width="140%" height="140%">
+        <feDropShadow dx="2" dy="2" stdDeviation="0" flood-opacity="0.8" flood-color="#000"/>
+      </filter>
+    </defs>
+    <rect width="30" height="30" x="1" y="1" fill="${color}" rx="0" stroke="#000" stroke-width="1" filter="url(#retro-shadow)"/>
+    <rect width="28" height="2" x="2" y="2" fill="#fff" fill-opacity="0.8"/>
+    <rect width="2" height="28" x="2" y="2" fill="#fff" fill-opacity="0.8"/>
+    <rect width="28" height="2" x="2" y="29" fill="#000" fill-opacity="0.3"/>
+    <rect width="2" height="28" x="29" y="2" fill="#000" fill-opacity="0.3"/>
+    ${iconContent}
+  </svg>`;
+}
+
+function createWindow(windowId) {
+  if (windows[windowId]) {
+    activateWindow(windowId);
+    return;
+  }
+
+  const data = portfolioData[windowId];
+  if (!data) return;
+
+  const id = generateId();
+  const windowEl = document.createElement('div');
+  windowEl.className = 'xp-window active';
+  windowEl.id = id;
+  windowEl.style.left = Math.random() * 300 + 100 + 'px';
+  windowEl.style.top = Math.random() * 200 + 50 + 'px';
+  windowEl.style.width = '500px';
+  windowEl.style.height = '400px';
+  windowEl.style.zIndex = ++nextZIndex;
+
+  windowEl.innerHTML = `
+    <div class="xp-window-header">
+      <div class="xp-window-title">${data.title}</div>
+      <div class="xp-window-controls">
+        <button class="xp-window-control minimize">_</button>
+        <button class="xp-window-control maximize">□</button>
+        <button class="xp-window-control close">×</button>
+      </div>
+    </div>
+    <div class="xp-window-content">${data.content}</div>
+  `;
+
+  document.getElementById('windows-container').appendChild(windowEl);
+
+  windows[id] = {
+    id: id,
+    windowId: windowId,
+    title: data.title,
+    element: windowEl,
+    isMinimized: false,
+    isMaximized: false,
+    isActive: true,
+    originalSize: { width: 500, height: 400 },
+    originalPosition: { x: parseInt(windowEl.style.left), y: parseInt(windowEl.style.top) }
+  };
+
+  activeWindowId = id;
+  updateTaskbar();
+  setupWindowEvents(id);
+}
+
+function setupWindowEvents(windowId) {
+  const windowObj = windows[windowId];
+  const windowEl = windowObj.element;
+  const header = windowEl.querySelector('.xp-window-header');
+  const closeBtn = windowEl.querySelector('.close');
+  const minimizeBtn = windowEl.querySelector('.minimize');
+  const maximizeBtn = windowEl.querySelector('.maximize');
+
+  // Window dragging
+  let isDragging = false;
+  let dragOffset = { x: 0, y: 0 };
+
+  header.addEventListener('mousedown', (e) => {
+    if (e.target.closest('.xp-window-controls')) return;
+    
+    isDragging = true;
+    dragOffset.x = e.clientX - windowEl.offsetLeft;
+    dragOffset.y = e.clientY - windowEl.offsetTop;
+    activateWindow(windowId);
+    
+    document.addEventListener('mousemove', handleDrag);
+    document.addEventListener('mouseup', stopDrag);
+  });
+
+  function handleDrag(e) {
+    if (!isDragging || windowObj.isMaximized) return;
+    
+    windowEl.style.left = (e.clientX - dragOffset.x) + 'px';
+    windowEl.style.top = Math.max(0, e.clientY - dragOffset.y) + 'px';
+  }
+
+  function stopDrag() {
+    isDragging = false;
+    document.removeEventListener('mousemove', handleDrag);
+    document.removeEventListener('mouseup', stopDrag);
+  }
+
+  // Window controls
+  closeBtn.addEventListener('click', () => closeWindow(windowId));
+  minimizeBtn.addEventListener('click', () => minimizeWindow(windowId));
+  maximizeBtn.addEventListener('click', () => maximizeWindow(windowId));
+
+  // Window activation
+  windowEl.addEventListener('mousedown', () => activateWindow(windowId));
+}
+
+function activateWindow(windowId) {
+  // Deactivate all windows
+  Object.values(windows).forEach(win => {
+    win.element.classList.remove('active');
+    win.element.querySelector('.xp-window-header').classList.add('inactive');
+    win.element.querySelector('.xp-window-title').classList.add('inactive');
+    win.isActive = false;
+  });
+
+  // Activate target window
+  if (windows[windowId]) {
+    const windowObj = windows[windowId];
+    windowObj.element.classList.add('active');
+    windowObj.element.querySelector('.xp-window-header').classList.remove('inactive');
+    windowObj.element.querySelector('.xp-window-title').classList.remove('inactive');
+    windowObj.element.style.zIndex = ++nextZIndex;
+    windowObj.isActive = true;
+    windowObj.isMinimized = false;
+    windowObj.element.style.display = 'block';
+    activeWindowId = windowId;
+    updateTaskbar();
+  }
+}
+
+function closeWindow(windowId) {
+  if (windows[windowId]) {
+    windows[windowId].element.remove();
+    delete windows[windowId];
+    updateTaskbar();
+  }
+}
+
+function minimizeWindow(windowId) {
+  if (windows[windowId]) {
+    windows[windowId].element.style.display = 'none';
+    windows[windowId].isMinimized = true;
+    windows[windowId].isActive = false;
+    updateTaskbar();
+  }
+}
+
+function maximizeWindow(windowId) {
+  const windowObj = windows[windowId];
+  if (!windowObj) return;
+
+  if (windowObj.isMaximized) {
+    // Restore
+    windowObj.element.style.width = windowObj.originalSize.width + 'px';
+    windowObj.element.style.height = windowObj.originalSize.height + 'px';
+    windowObj.element.style.left = windowObj.originalPosition.x + 'px';
+    windowObj.element.style.top = windowObj.originalPosition.y + 'px';
+    windowObj.element.classList.remove('maximized');
+    windowObj.isMaximized = false;
+  } else {
+    // Maximize
+    windowObj.originalSize = { 
+      width: parseInt(windowObj.element.style.width), 
+      height: parseInt(windowObj.element.style.height) 
+    };
+    windowObj.originalPosition = { 
+      x: parseInt(windowObj.element.style.left), 
+      y: parseInt(windowObj.element.style.top) 
+    };
+    windowObj.element.classList.add('maximized');
+    windowObj.isMaximized = true;
+  }
+}
+
+function updateTaskbar() {
+  const taskbarButtons = document.getElementById('taskbar-buttons');
+  taskbarButtons.innerHTML = '';
+
+  Object.values(windows).forEach(windowObj => {
+    const button = document.createElement('button');
+    button.className = 'xp-taskbar-button' + (windowObj.isActive ? ' active' : '');
+    button.textContent = windowObj.title;
+    button.addEventListener('click', () => {
+      if (windowObj.isMinimized) {
+        activateWindow(windowObj.id);
+      } else if (windowObj.isActive) {
+        minimizeWindow(windowObj.id);
+      } else {
+        activateWindow(windowObj.id);
+      }
+    });
+    taskbarButtons.appendChild(button);
+  });
+}
+
+// Paperclip assistant
+let currentMessageIndex = 0;
+let paperclipAnimating = false;
+
+function updatePaperclipMessage() {
+  const messageEl = document.getElementById('paperclip-message');
+  if (messageEl && paperclipVisible) {
+    messageEl.textContent = paperclipMessages[currentMessageIndex];
+    currentMessageIndex = (currentMessageIndex + 1) % paperclipMessages.length;
+  }
+}
+
+function animatePaperclip() {
+  if (!paperclipVisible) return;
+  
+  const characterEl = document.getElementById('paperclip-character');
+  const animations = ['bounce', 'wiggle', 'spin', 'wave', 'blink'];
+  const randomAnimation = animations[Math.floor(Math.random() * animations.length)];
+  
+  characterEl.className = 'xp-paperclip-character ' + randomAnimation;
+  paperclipAnimating = true;
+  
+  setTimeout(() => {
+    characterEl.className = 'xp-paperclip-character';
+    paperclipAnimating = false;
+  }, 1000);
+}
+
+function hidePaperclip() {
+  document.getElementById('paperclip').style.display = 'none';
+  paperclipVisible = false;
+  
+  // Return after 30 seconds
+  setTimeout(() => {
+    document.getElementById('paperclip').style.display = 'block';
+    paperclipVisible = true;
+    currentMessageIndex = Math.floor(Math.random() * paperclipMessages.length);
+    updatePaperclipMessage();
+  }, 30000);
+}
+
+// Event listeners
+document.addEventListener('DOMContentLoaded', () => {
+  // Initialize
+  createDesktopIcons();
+  updateClock();
+  setInterval(updateClock, 1000);
+  setInterval(updatePaperclipMessage, 8000);
+  setInterval(animatePaperclip, 12000);
+
+  // Desktop icons
+  document.querySelectorAll('.xp-desktop-icon').forEach(icon => {
+    icon.addEventListener('dblclick', (e) => {
+      e.preventDefault();
+      const windowId = icon.dataset.window;
+      createWindow(windowId);
+    });
+
+    icon.addEventListener('click', (e) => {
+      e.stopPropagation();
+      // Deselect all icons
+      document.querySelectorAll('.xp-desktop-icon').forEach(i => i.classList.remove('selected'));
+      // Select this icon
+      icon.classList.add('selected');
+      selectedIcon = icon.dataset.window;
+    });
+  });
+
+  // Desktop click
+  document.getElementById('desktop').addEventListener('click', (e) => {
+    if (e.target === e.currentTarget) {
+      document.querySelectorAll('.xp-desktop-icon').forEach(i => i.classList.remove('selected'));
+      selectedIcon = null;
+    }
+  });
+
+  // Start button
+  document.getElementById('start-button').addEventListener('click', (e) => {
+    e.stopPropagation();
+    startMenuOpen = !startMenuOpen;
+    const startMenu = document.getElementById('start-menu');
+    const startButton = document.getElementById('start-button');
+    
+    if (startMenuOpen) {
+      startMenu.style.display = 'block';
+      startButton.classList.add('active');
+    } else {
+      startMenu.style.display = 'none';
+      startButton.classList.remove('active');
+    }
+  });
+
+  // Start menu items
+  document.querySelectorAll('.xp-start-menu-item').forEach(item => {
+    item.addEventListener('click', () => {
+      const windowId = item.dataset.window;
+      createWindow(windowId);
+      
+      // Close start menu
+      document.getElementById('start-menu').style.display = 'none';
+      document.getElementById('start-button').classList.remove('active');
+      startMenuOpen = false;
+    });
+  });
+
+  // Close start menu when clicking elsewhere
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.xp-start-menu') && !e.target.closest('.xp-start-button')) {
+      document.getElementById('start-menu').style.display = 'none';
+      document.getElementById('start-button').classList.remove('active');
+      startMenuOpen = false;
+    }
+  });
+
+  // Context menu
+  document.getElementById('desktop').addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    const contextMenu = document.getElementById('context-menu');
+    contextMenu.style.display = 'block';
+    contextMenu.style.left = e.clientX + 'px';
+    contextMenu.style.top = e.clientY + 'px';
+  });
+
+  document.addEventListener('click', () => {
+    document.getElementById('context-menu').style.display = 'none';
+  });
+
+  // Paperclip close button
+  document.getElementById('paperclip-close').addEventListener('click', hidePaperclip);
+
+  // Initial paperclip message
+  updatePaperclipMessage();
+});</script>
+</body>
+</html>
