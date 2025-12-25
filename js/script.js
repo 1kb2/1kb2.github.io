@@ -67,9 +67,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 loadProjects();
                 activeFileLabel.innerText = '~/projects/';
                 break;
-            case 'certificates':
-                loadAllCertificates();
-                activeFileLabel.innerText = '~/certificates/';
+            case 'certifications':
+                loadAllcertifications();
+                activeFileLabel.innerText = '~/certifications/';
                 break;
             case 'blog': // NEW: Blog Index
                 loadBlogList();
@@ -202,7 +202,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <div class="cert-separator"></div>
             
             <p style="color: #666;">// <strong>USAGE:</strong> Navigate using the sidebar or type commands below.</p>
-            <p style="color: #666;">// <strong>COMMANDS:</strong> :projects, :certificates, :about, :blog</p>
+            <p style="color: #666;">// <strong>COMMANDS:</strong> :projects, :certifications, :about, :blog</p>
         `;
     }
 
@@ -235,11 +235,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ==========================================
-    // 5. CERTIFICATES
+    // 5. certifications
     // ==========================================
-    async function loadAllCertificates() {
+    async function loadAllcertifications() {
         try {
-            const res = await fetch('data/certificates.json');
+            const res = await fetch('data/certifications.json');
             const data = await res.json();
             window.certData = data; 
             
@@ -250,7 +250,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 grouped[issuer].push(cert);
             });
 
-            let html = `<h1># Directory: ~/certificates</h1>`;
+            let html = `<h1># Directory: ~/certifications</h1>`;
 
             for (const issuer in grouped) {
                 html += `
@@ -401,9 +401,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (cleanCmd === 'projects') window.navigate('projects');
         else if (cleanCmd === 'about') window.navigate('about');
-        else if (cleanCmd === 'certificates') window.navigate('certificates');
+        else if (cleanCmd === 'certifications') window.navigate('certifications');
         else if (cleanCmd === 'blog') window.navigate('blog');
-        else if (cleanCmd === 'help') alert('Commands: \n :about \n :projects \n :certificates \n :blog');
+        else if (cleanCmd === 'help') alert('Commands: \n :about \n :projects \n :certifications \n :blog');
         else alert(`E492: Not an editor command: ${cmd}`);
         
         vimCmd.value = '';
