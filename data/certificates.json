@@ -1,0 +1,57 @@
+[
+  {
+    "id": "cert_002",
+    "filename": "CRTO.crt",
+    "name": "Certified Red Team Operator",
+    "issuer": "Zero-Point Security",
+    "description": "VValidates the operational skills necessary to execute adversary simulations, manage command and control infrastructure, and conduct post-exploitation within Active Directory. <br><br> Preparation in progress...",
+    "badge_image": "images/CRTO.png",
+    
+    "status": "planned",
+    "exam_date": "-" 
+  },
+  {
+    "id": "cert_001",
+    "filename": "OSCP.crt",
+    "name": "Offensive Security Certified Professional",
+    "issuer": "OffSec",
+    "description": "Validates the hands-on skills necessary to execute penetration testing methodologies, exploit network vulnerabilities, escalate privileges, and document professional findings. <br><br> Preparation in progress...",
+    "badge_image": "images/OSCP.png",
+    
+    "status": "planned",
+    "exam_date": "-" 
+  },
+  {
+    "id": "cert_003",
+    "filename": "HTB_CJCA.md",
+    "name": "HTB Certified Junior Cybersecurity Associate",
+    "issuer": "HackTheBox",
+    "description": "Validates the practical skills necessary to detect security anomalies, conduct network and log analysis, and execute incident response and forensic investigations. <br><br> Preparation in progress...",
+    "badge_image": "images/CJCA.png",
+    
+    "status": "planned",
+    "exam_date": "-" 
+  },
+  {
+    "id": "cert_004",
+    "filename": "HTB_CPTS.md",
+    "name": "HTB Certified Penetration Testing Specialist",
+    "issuer": "HackTheBox",
+    "description": "Validates the advanced skills necessary to conduct full-scope penetration engagements, exploit Active Directory and web vulnerabilities, and produce commercial-grade assessment reports. <br><br> Preparation in progress...",
+    "badge_image": "images/CPTS.png",
+    
+    "status": "planned",
+    "exam_date": "-" 
+  },
+  {
+    "id": "cert_005",
+    "filename": "CompTIA_Sec_Plus.crt",
+    "name": "CompTIA Security+",
+    "issuer": "CompTIA",
+    "date_earned": "2025-12-10T09:00:00",
+    "expiry_date": "2028-12-10T09:00:00",
+    "description": "Validates the foundational skills necessary to assess threats, secure networks and devices, and manage risk, compliance, and incident response.",
+    "badge_image": "images/securityplus.png"
+  }
+  
+]

@@ -1,0 +1,14 @@
+[
+  {
+    "name": "network-monitor-cli",
+    "stack": "Python, Rust",
+    "description": "Real-time packet loss monitor.",
+    "github": "https://github.com/yourname/net-mon"
+  },
+  {
+    "name": "vim-archive",
+    "stack": "HTML, JS",
+    "description": "This portfolio website.",
+    "github": "https://github.com/yourname/vim-archive"
+  }
+]
