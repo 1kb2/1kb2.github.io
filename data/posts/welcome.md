@@ -4,7 +4,7 @@ Welcome 👋
 
 This blog is my personal space to share what I learn, build, and think about—especially in cybersecurity, technology, and self-improvement.
 
-## WhoAmI
+## Who Am I
 I’m a curious, hands-on person who learns best by doing. I don’t just like theory: **I like breaking things, understanding how they work, and then rebuilding them better.** That mindset is what pulled me into cybersecurity, with a strong focus on offensive security and red teaming. I’m constantly studying, practicing in labs, teaching others, and pushing myself to get better every day.
 
 ## My Philosophy
