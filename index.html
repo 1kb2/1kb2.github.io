@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>┌──(1kb2㉿onekbtwo)-[~]</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+    <div class="app-container">
+        <aside class="sidebar">
+            <div class="sidebar-header">EXPLORER</div>
+            <nav id="file-explorer">
+                <div class="nav-item" data-target="about">
+                    <span class="icon">[i]</span> ~/about
+                </div>
+                <div class="nav-item" data-target="projects">
+                    <span class="icon">[P]</span> ~/projects
+                </div>
+                <div class="nav-item" data-target="certificates">
+                    <span class="icon">[F]</span> ~/certificates
+                </div>
+                <div class="nav-item" data-target="blog">
+                    <span class="icon">[B]</span> ~/blog
+                </div>
+            </nav>
+        </aside>
+
+        <main class="main-buffer">
+            <div class="gutter" id="gutter"></div>
+            <div class="content" id="buffer-content">
+                </div>
+        </main>
+    </div>
+
+    <footer class="status-bar-container">
+        <div class="status-bar">
+            <div class="status-left">
+                <span class="mode" id="mode-display">-- NORMAL --</span>
+                <span id="active-file">~/index</span>
+            </div>
+            <div class="status-right">
+                <span>utf-8</span>
+                <span>100%</span>
+            </div>
+        </div>
+        
+        <div class="command-line">
+            <span class="cmd-prompt">:</span>
+            <input type="text" id="vim-cmd" autocomplete="off" spellcheck="false">
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    
+    <script src="js/script.js"></script>
+</body>
+</html>
