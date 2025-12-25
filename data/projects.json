@@ -1,14 +1,14 @@
 [
   {
-    "name": "network-monitor-cli",
-    "stack": "Python, Rust",
-    "description": "Real-time packet loss monitor.",
-    "github": "https://github.com/yourname/net-mon"
+    "name": "h2cSmuGGl (Improved Fork of h2csmuggler)",
+    "stack": "Python",
+    "description": "Detects and exploits HTTP/2 cleartext (h2c) upgrade vulnerabilities in misconfigured reverse proxies or edge servers.",
+    "github": "https://github.com/1kb2/h2cSmuGGl"
   },
   {
-    "name": "vim-archive",
-    "stack": "HTML, JS",
-    "description": "This portfolio website.",
-    "github": "https://github.com/yourname/vim-archive"
+    "name": "-",
+    "stack": "-",
+    "description": "-",
+    "github": "-"
   }
 ]
