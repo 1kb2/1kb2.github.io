@@ -1,0 +1,253 @@
+:root {
+    --bg-color: #000000;
+    --text-color: #ffffff;
+    --border-color: #333333;
+    --highlight: #ffffff;
+    --highlight-text: #000000;
+    --active-green: #00ff00;
+    --expired-red: #ff0000;
+    --planned-orange: #ffaa00;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    font-family: 'Fira Code', monospace;
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+/* --- Layout --- */
+.app-container { display: flex; flex: 1; overflow: hidden; }
+
+/* Sidebar */
+.sidebar {
+    width: 250px;
+    border-right: 1px solid var(--text-color);
+    display: flex;
+    flex-direction: column;
+    padding-top: 10px;
+    background: #000;
+    z-index: 10;
+}
+.sidebar-header { padding: 0 1rem 1rem; color: #666; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; }
+.nav-item { padding: 5px 1rem; cursor: pointer; font-size: 0.9rem; display: flex; gap: 10px; }
+.nav-item:hover, .nav-item.active { background-color: var(--highlight); color: var(--highlight-text); }
+
+/* --- Main Buffer (The Scroll Fix) --- */
+/* We move the scrollbar to this wrapper so the Gutter and Content scroll together */
+.main-buffer { 
+    flex: 1; 
+    display: flex; 
+    overflow-y: auto; /* Scrollbar lives here */
+    position: relative; 
+}
+
+.gutter {
+    width: 50px;
+    min-height: 100%; /* Ensure it stretches with content */
+    background: var(--bg-color);
+    border-right: 1px dashed var(--border-color);
+    text-align: right;
+    padding-right: 10px;
+    
+    /* Fixed Alignment Settings */
+    padding-top: 20px;
+    font-size: 15px;
+    line-height: 24px; /* Matches content line-height */
+    
+    color: #444;
+    user-select: none;
+    flex-shrink: 0; /* Prevents shrinking */
+}
+
+.content { 
+    flex: 1; 
+    padding: 20px; 
+    overflow: visible; /* Let content grow */
+    
+    /* Fixed Alignment Settings */
+    font-size: 15px; 
+    line-height: 24px; /* Matches gutter line-height */
+}
+
+/* Ensure text inside cards aligns with the grid */
+.cert-card p, .cert-card h2 {
+    line-height: 24px;
+    white-space: pre-wrap; /* Respects \n newlines */
+}
+
+/* --- Components --- */
+
+/* Tables */
+table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+th, td { text-align: left; padding: 8px; border-bottom: 1px dashed #444; }
+th { border-bottom: 1px solid var(--text-color); text-transform: uppercase; }
+
+/* Status Bar & Command Line */
+.status-bar-container { display: flex; flex-direction: column; }
+.status-bar {
+    height: 25px;
+    background: var(--highlight);
+    color: var(--highlight-text);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 1rem;
+    font-size: 0.85rem;
+    font-weight: bold;
+}
+.mode { margin-right: 15px; }
+
+.command-line {
+    height: 30px;
+    background: #000;
+    border-top: 1px solid #333;
+    display: flex;
+    align-items: center;
+    padding: 0 10px;
+}
+.cmd-prompt { color: #fff; margin-right: 5px; font-weight: bold; }
+#vim-cmd {
+    background: transparent;
+    border: none;
+    color: #fff;
+    font-family: 'Fira Code', monospace;
+    width: 100%;
+    outline: none;
+}
+
+/* --- Certificate Styles --- */
+
+/* Badge Images (Large & Transparent) */
+.cert-badge-img {
+    width: 180px;        /* Fixed large size */
+    height: 180px;       
+    object-fit: contain; /* Keeps aspect ratio */
+    display: block;
+    margin-left: 20px;   /* Space from text */
+    
+    /* Hacker Vibe */
+    filter: grayscale(100%) contrast(1.2);
+    opacity: 0.9;
+    
+    /* Remove borders/backgrounds for transparency */
+    border: none; 
+    background: transparent; 
+    padding: 0;
+}
+
+/* Status Badges */
+.active-badge { border: 1px solid var(--active-green); color: var(--active-green); padding: 2px 6px; font-weight: bold; font-size: 0.8rem; letter-spacing: 1px; }
+.expired-badge { border: 1px solid var(--expired-red); color: var(--expired-red); padding: 2px 6px; font-weight: bold; font-size: 0.8rem; text-decoration: line-through; }
+.planned-badge { border: 1px solid var(--planned-orange); color: var(--planned-orange); padding: 2px 6px; font-weight: bold; font-size: 0.8rem; letter-spacing: 1px; }
+
+/* Progress Bar */
+.progress-container { width: 100%; height: 6px; border: 1px solid #333; margin-top: 5px; margin-bottom: 15px; position: relative; background: #111; }
+.progress-fill { height: 100%; background-color: #fff; transition: width 0.03s linear; }
+
+/* Grid Layout for Side-by-Side Certs */
+.issuer-section { margin-bottom: 60px; border-left: 2px solid #333; padding-left: 20px; }
+.issuer-title { color: #888; text-transform: uppercase; font-size: 0.9rem; margin-bottom: 20px; letter-spacing: 2px; font-weight: bold; }
+
+.cert-grid { display: flex; flex-wrap: wrap; gap: 30px; }
+
+.cert-card {
+    flex: 1 1 500px; /* Wide cards to fit text + big image */
+    background: #080808;
+    border: 1px solid #222;
+    padding: 25px;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    min-height: 250px; 
+}
+
+/* Typography & Utils */
+h1 { font-size: 1.5rem; margin-bottom: 1rem; border-bottom: 1px dashed white; padding-bottom: 0.5rem; }
+h2 { font-size: 1.2rem; margin-top: 1.5rem; margin-bottom: 0.5rem; }
+p { margin-bottom: 1rem; max-width: 800px; }
+.neofetch-container { display: flex; gap: 40px; margin-top: 20px; flex-wrap: wrap; }
+.ascii-art { color: var(--highlight); font-weight: bold; white-space: pre; line-height: 1.2; }
+.info-block div { margin-bottom: 5px; }
+.label { color: #888; margin-right: 10px; }
+button { cursor: pointer; }
+
+/* --- Blog & Markdown Styling --- */
+.blog-row:hover {
+    background-color: #111;
+}
+
+.markdown-body {
+    margin-top: 20px;
+    max-width: 800px;
+}
+
+.markdown-body h1 {
+    font-size: 1.8rem;
+    border-bottom: 2px solid #333;
+    margin-top: 30px;
+    margin-bottom: 20px;
+    color: #fff;
+}
+
+.markdown-body h2 {
+    font-size: 1.4rem;
+    margin-top: 25px;
+    margin-bottom: 15px;
+    color: #ddd;
+    border-bottom: 1px dashed #444;
+}
+
+.markdown-body h3 {
+    font-size: 1.1rem;
+    color: #aaa;
+    margin-top: 20px;
+}
+
+.markdown-body ul, .markdown-body ol {
+    margin-left: 20px;
+    margin-bottom: 15px;
+    color: #ccc;
+}
+
+.markdown-body li {
+    margin-bottom: 5px;
+}
+
+.markdown-body blockquote {
+    border-left: 3px solid #555;
+    padding-left: 15px;
+    color: #888;
+    margin: 20px 0;
+    font-style: italic;
+    background: #050505;
+    padding: 10px;
+}
+
+.markdown-body code {
+    background: #222;
+    padding: 2px 5px;
+    border-radius: 3px;
+    font-family: 'Fira Code', monospace;
+    font-size: 0.9em;
+    color: #ffaa00;
+}
+
+.markdown-body pre {
+    background: #111;
+    padding: 15px;
+    border: 1px solid #333;
+    overflow-x: auto;
+    margin-bottom: 20px;
+}
+
+.markdown-body pre code {
+    background: transparent;
+    padding: 0;
+    color: #ccc;
+}
