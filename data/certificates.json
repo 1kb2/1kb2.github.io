@@ -1,17 +1,17 @@
 [
   {
-    "id": "cert_002",
+    "id": "cert_005",
     "filename": "CRTO.crt",
     "name": "Certified Red Team Operator",
     "issuer": "Zero-Point Security",
-    "description": "VValidates the operational skills necessary to execute adversary simulations, manage command and control infrastructure, and conduct post-exploitation within Active Directory. <br><br> Preparation in progress...",
+    "description": "Validates the operational skills necessary to execute adversary simulations, manage command and control infrastructure, and conduct post-exploitation within Active Directory. <br><br> Preparation in progress...",
     "badge_image": "images/CRTO.png",
     
     "status": "planned",
     "exam_date": "-" 
   },
   {
-    "id": "cert_001",
+    "id": "cert_004",
     "filename": "OSCP.crt",
     "name": "Offensive Security Certified Professional",
     "issuer": "OffSec",
@@ -23,17 +23,6 @@
   },
   {
     "id": "cert_003",
-    "filename": "HTB_CJCA.md",
-    "name": "HTB Certified Junior Cybersecurity Associate",
-    "issuer": "HackTheBox",
-    "description": "Validates the practical skills necessary to detect security anomalies, conduct network and log analysis, and execute incident response and forensic investigations. <br><br> Preparation in progress...",
-    "badge_image": "images/CJCA.png",
-    
-    "status": "planned",
-    "exam_date": "-" 
-  },
-  {
-    "id": "cert_004",
     "filename": "HTB_CPTS.md",
     "name": "HTB Certified Penetration Testing Specialist",
     "issuer": "HackTheBox",
@@ -44,7 +33,18 @@
     "exam_date": "-" 
   },
   {
-    "id": "cert_005",
+    "id": "cert_002",
+    "filename": "HTB_CJCA.md",
+    "name": "HTB Certified Junior Cybersecurity Associate",
+    "issuer": "HackTheBox",
+    "description": "Validates the practical skills necessary to detect security anomalies, conduct network and log analysis, and execute incident response and forensic investigations. <br><br> Preparation in progress...",
+    "badge_image": "images/CJCA.png",
+    
+    "status": "planned",
+    "exam_date": "-" 
+  },
+  {
+    "id": "cert_001",
     "filename": "CompTIA_Sec_Plus.crt",
     "name": "CompTIA Security+",
     "issuer": "CompTIA",
