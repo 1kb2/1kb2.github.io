@@ -23,10 +23,14 @@ document.addEventListener('DOMContentLoaded', () => {
     
     let countdownInterval = null;
 
-    // ==========================================
+   // ==========================================
     // 0. AUTO-RESIZE GUTTER
     // ==========================================
     const updateGutter = () => {
+        // MOBILE OPTIMIZATION: Stop calculation if gutter is hidden via CSS
+        // This prevents wasting memory on phones where line numbers aren't visible
+        if (getComputedStyle(gutter).display === 'none') return;
+
         const h = bufferContent.scrollHeight;
         const lines = Math.ceil(h / 24); 
         let html = '';
@@ -48,7 +52,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (countdownInterval) clearInterval(countdownInterval);
 
         navItems.forEach(el => el.classList.remove('active'));
-        // Handle active state for blog items
+        
+        // Handle active state (special logic for blog details)
         const selector = target === 'post-detail' ? `[data-target="blog"]` : `[data-target="${target}"]`;
         const activeNav = document.querySelector(selector);
         if (activeNav) activeNav.classList.add('active');
@@ -68,14 +73,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 activeFileLabel.innerText = '~/projects/';
                 break;
             case 'certifications':
-                loadAllcertifications();
+                loadAllCertifications();
                 activeFileLabel.innerText = '~/certifications/';
                 break;
-            case 'blog': // NEW: Blog Index
+            case 'blog':
                 loadBlogList();
                 activeFileLabel.innerText = '~/blog/';
                 break;
-            case 'post-detail': // NEW: Read Post
+            case 'post-detail':
                 loadBlogPost(param);
                 activeFileLabel.innerText = `~/blog/${param}`;
                 break;
@@ -87,57 +92,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ==========================================
-    // 2. BLOG FUNCTIONS (NEW)
-    // ==========================================
-    async function loadBlogList() {
-        try {
-            const res = await fetch('data/blog.json');
-            const posts = await res.json();
-            
-            let html = `<h1># Directory: ~/blog</h1>
-                        <p style="color:#666; margin-bottom:20px;">// Click a title to read the article.</p>
-                        <table>
-                            <thead><tr><th>DATE</th><th>TITLE</th><th>DESCRIPTION</th></tr></thead>
-                            <tbody>`;
-            
-            posts.forEach(post => {
-                html += `
-                <tr class="blog-row" onclick="window.navigate('post-detail', '${post.filename}')" style="cursor: pointer;">
-                    <td style="white-space:nowrap; color:#888;">${post.date}</td>
-                    <td style="font-weight:bold; color:white; text-decoration:underline;">${post.title}</td>
-                    <td style="opacity:0.7;">${post.description}</td>
-                </tr>`;
-            });
-            html += `</tbody></table>`;
-            bufferContent.innerHTML = html;
-        } catch (e) { renderError("Could not load blog index. Check console."); console.error(e); }
-    }
-
-    async function loadBlogPost(filename) {
-        try {
-            const res = await fetch(`data/posts/${filename}`);
-            if (!res.ok) throw new Error("Post not found");
-            const text = await res.text();
-            
-            // Parse Markdown
-            const htmlContent = marked.parse(text);
-            
-            bufferContent.innerHTML = `
-                <button onclick="window.navigate('blog')" style="background:transparent; border:1px solid #333; color:#888; padding:5px 10px; margin-bottom:20px; font-family:inherit;">../ (BACK)</button>
-                <div class="markdown-body">
-                    ${htmlContent}
-                </div>
-                <div class="cert-separator"></div>
-                <p style="color:#444; text-align:center;">[ END OF FILE ]</p>
-            `;
-            
-            // Trigger syntax highlighting if you add prism.js later
-            // Prism.highlightAll(); 
-        } catch (e) { renderError(`Error loading post: ${filename}`); }
-    }
-
-    // ==========================================
-    // 3. ABOUT PAGE
+    // 2. ABOUT PAGE
     // ==========================================
     function loadNeofetch() {
         const art = `
@@ -171,11 +126,9 @@ document.addEventListener('DOMContentLoaded', () => {
                                                       +++`;
 
         bufferContent.innerHTML = `
-            <h1># ~/about </h1>
-            
+            <h1># ~/about/index </h1>
             <div class="neofetch-container" style="align-items: flex-start;">
                 <pre class="ascii-art" style="font-size: 6px; line-height: 8px;">${art}</pre>
-                
                 <div class="info-block" style="margin-top: 10px;">
                     <div><span class="label">User:</span><span class="val">1kb2</span></div>
                     <div><span class="label">Host:</span><span class="val">x</span></div>
@@ -191,43 +144,30 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                 </div>
             </div>
-            
             <div style="margin-top: 40px; max-width: 800px; color: #ccc;">
-                <p>This website is a cybersecurity portfolio focused on practical learning, security research, and hands-on technical projects. The main areas of interest include cybersecurity, penetration testing, network security, Linux systems, and ethical hacking.</p>
-                <p>The content presented here documents real-world experiments, labs, and projects related to offensive security, defensive security, and system hardening. Emphasis is placed on understanding vulnerabilities, attack vectors, and security fundamentals rather than relying solely on automated tools.</p>
-                <p>This portfolio reflects an approach centered on continuous learning, problem solving, and security mindset development. Topics explored include ethical hacking techniques, security tools, network analysis, operating system security, and threat awareness.</p>
+                <p>This website is a cybersecurity portfolio focused on practical learning, security research, and hands-on technical projects.</p>
+                <p>The content presented here documents real-world experiments, labs, and projects related to offensive security.</p>
+                <p>This portfolio reflects an approach centered on continuous learning, problem solving, and security mindset development.</p>
                 <p>The goal of this website is to showcase technical skills, demonstrate practical experience, and provide insight into a structured cybersecurity learning path.</p>
             </div>
-
             <div class="cert-separator"></div>
-            
             <p style="color: #666;">// <strong>USAGE:</strong> Navigate using the sidebar or type commands below.</p>
-            <p style="color: #666;">// <strong>COMMANDS:</strong> :projects, :certifications, :about, :blog</p>
+            <p style="color: #666;">// <strong>COMMANDS:</strong> :projects, :certifications, :blog, :about</p>
         `;
     }
 
     // ==========================================
-    // 4. PROJECTS
+    // 3. PROJECTS
     // ==========================================
     async function loadProjects() {
         try {
             const res = await fetch('data/projects.json');
             const projects = await res.json();
-            
             let html = `<h1># Directory: ~/projects</h1>
-                        <table>
-                            <thead><tr><th>NAME</th><th>STACK</th><th>DESCRIPTION</th><th>LINK</th></tr></thead>
-                            <tbody>`;
-            
+                        <table><thead><tr><th>NAME</th><th>STACK</th><th>DESCRIPTION</th><th>LINK</th></tr></thead><tbody>`;
             projects.forEach(p => {
                 const link = p.github ? `<a href="${p.github}" target="_blank" style="color:white; text-decoration:underline;">[ GITHUB ]</a>` : '<span style="color:#666;">--</span>';
-                html += `
-                <tr>
-                    <td style="font-weight:bold">${p.name}</td>
-                    <td>${p.stack}</td>
-                    <td style="opacity:0.7">${p.description}</td>
-                    <td>${link}</td>
-                </tr>`;
+                html += `<tr><td style="font-weight:bold">${p.name}</td><td>${p.stack}</td><td style="opacity:0.7">${p.description}</td><td>${link}</td></tr>`;
             });
             html += `</tbody></table>`;
             bufferContent.innerHTML = html;
@@ -235,11 +175,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ==========================================
-    // 5. certifications
+    // 4. CERTIFICATIONS
     // ==========================================
-    async function loadAllcertifications() {
+    async function loadAllCertifications() {
         try {
-            const res = await fetch('data/certifications.json');
+            const res = await fetch('data/certificates.json');
             const data = await res.json();
             window.certData = data; 
             
@@ -258,7 +198,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div class="issuer-title">// ${issuer}</div>
                     <div class="cert-grid">
                 `;
-
                 grouped[issuer].forEach(cert => {
                     let badgeHtml = '';
                     if (cert.badge_image) {
@@ -268,7 +207,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
 
                     const isPlanned = cert.status === 'planned';
-                    
                     let footerHtml = '';
                     if (isPlanned) {
                         const dateDisplay = cert.exam_date === '-' ? 'TBD' : cert.exam_date.split('T')[0];
@@ -297,16 +235,13 @@ document.addEventListener('DOMContentLoaded', () => {
                             </div>
                             ${badgeHtml}
                         </div>
-                        
                         <div style="margin-top: auto;">
                             <p style="font-size:0.7rem; margin-bottom:0;">STATUS: <span id="badge-${cert.id}">...</span></p>
                             <h2 id="timer-${cert.id}" style="font-family: 'Fira Code', monospace; font-size: 1.2rem; margin: 10px 0; color: #fff; min-height:1.2em;">...</h2>
                             ${footerHtml}
                         </div>
-                    </div>
-                    `;
+                    </div>`;
                 });
-
                 html += `</div></div>`;
             }
 
@@ -315,7 +250,6 @@ document.addEventListener('DOMContentLoaded', () => {
             
             const updateTimers = () => {
                 const now = new Date().getTime();
-
                 data.forEach(cert => {
                     const elBadge = document.getElementById(`badge-${cert.id}`);
                     const elTimer = document.getElementById(`timer-${cert.id}`);
@@ -376,8 +310,51 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (e) { renderError(e); }
     }
 
-    function pad(num, size = 2) {
-        return num.toString().padStart(size, '0');
+    // ==========================================
+    // 5. BLOG FUNCTIONS
+    // ==========================================
+    async function loadBlogList() {
+        try {
+            const res = await fetch('data/blog.json');
+            const posts = await res.json();
+            
+            let html = `<h1># Directory: ~/blog</h1>
+                        <p style="color:#666; margin-bottom:20px;">// Click a title to read the article.</p>
+                        <table>
+                            <thead><tr><th>DATE</th><th>TITLE</th><th>DESCRIPTION</th></tr></thead>
+                            <tbody>`;
+            
+            posts.forEach(post => {
+                html += `
+                <tr class="blog-row" onclick="window.navigate('post-detail', '${post.filename}')" style="cursor: pointer;">
+                    <td style="white-space:nowrap; color:#888;">${post.date}</td>
+                    <td style="font-weight:bold; color:white; text-decoration:underline;">${post.title}</td>
+                    <td style="opacity:0.7;">${post.description}</td>
+                </tr>`;
+            });
+            html += `</tbody></table>`;
+            bufferContent.innerHTML = html;
+        } catch (e) { renderError("Could not load blog index."); console.error(e); }
+    }
+
+    async function loadBlogPost(filename) {
+        try {
+            const res = await fetch(`data/posts/${filename}`);
+            if (!res.ok) throw new Error("Post not found");
+            const text = await res.text();
+            
+            // Parse Markdown
+            const htmlContent = marked.parse(text);
+            
+            bufferContent.innerHTML = `
+                <button onclick="window.navigate('blog')" style="background:transparent; border:1px solid #333; color:#888; padding:5px 10px; margin-bottom:20px; font-family:inherit;">../ (BACK)</button>
+                <div class="markdown-body">
+                    ${htmlContent}
+                </div>
+                <div class="cert-separator"></div>
+                <p style="color:#444; text-align:center;">[ END OF FILE ]</p>
+            `;
+        } catch (e) { renderError(`Error loading post: ${filename}`); }
     }
 
     // ==========================================
@@ -396,18 +373,19 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     function handleCommand(cmd) {
-        // Remove 'w ' or 'e ' if typed, but allow direct commands
         const cleanCmd = cmd.replace(/^w\s+/, '').replace(/^e\s+/, '');
-
         if (cleanCmd === 'projects') window.navigate('projects');
         else if (cleanCmd === 'about') window.navigate('about');
         else if (cleanCmd === 'certifications') window.navigate('certifications');
         else if (cleanCmd === 'blog') window.navigate('blog');
         else if (cleanCmd === 'help') alert('Commands: \n :about \n :projects \n :certifications \n :blog');
         else alert(`E492: Not an editor command: ${cmd}`);
-        
         vimCmd.value = '';
         vimCmd.blur();
+    }
+    
+    function pad(num, size = 2) {
+        return num.toString().padStart(size, '0');
     }
     
     function renderError(e) { bufferContent.innerHTML = `<h2 style="color:red">Error</h2><p>${e}</p>`; }
