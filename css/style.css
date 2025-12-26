@@ -251,3 +251,190 @@ button { cursor: pointer; }
     padding: 0;
     color: #ccc;
 }
+
+/* =========================================
+   MOBILE RESPONSIVENESS (Max-Width 768px)
+   ========================================= */
+@media (max-width: 768px) {
+
+    /* --- 1. LAYOUT --- */
+    .app-container {
+        flex-direction: column;
+    }
+
+    /* --- 2. SIDEBAR (Top Navigation Bar) --- */
+    .sidebar {
+        width: 100%;
+        height: auto;
+        border-right: none;
+        border-bottom: 1px solid #333;
+        padding: 0;
+        flex-shrink: 0;
+    }
+
+    .sidebar-header {
+        display: none;
+    }
+
+    #file-explorer {
+        display: flex;
+        overflow-x: auto; /* Scroll horizontally */
+        padding: 10px;
+        background: #000;
+        gap: 10px;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .nav-item {
+        white-space: nowrap;
+        border: 1px solid #333;
+        padding: 8px 15px;
+        background: #080808;
+        font-size: 0.85rem;
+        color: #888;
+    }
+
+    /* FIX: Active tab is now White Background / Black Text */
+    .nav-item.active {
+        background-color: #ffffff !important;
+        color: #000000 !important;
+        border-color: #ffffff;
+        font-weight: bold;
+    }
+
+    /* --- 3. MAIN CONTENT --- */
+    .gutter {
+        display: none; /* Hide line numbers on mobile */
+    }
+
+    .content {
+        padding: 15px;
+        font-size: 0.9rem;
+        line-height: 1.4;
+        overflow-x: hidden;
+    }
+
+    /* --- 4. ABOUT PAGE (Side-by-Side Fix) --- */
+    .neofetch-container {
+        display: flex;
+        flex-direction: row !important; /* Force side-by-side */
+        flex-wrap: nowrap;
+        align-items: flex-start !important;
+        gap: 5px; /* Tiny gap */
+        overflow: hidden;
+    }
+
+    .ascii-art {
+        /* Increased size for better visibility */
+        font-size: 4px !important; 
+        line-height: 5px !important;
+        
+        flex: 0 0 auto;
+        margin-right: 5px;
+        color: var(--highlight);
+        overflow: hidden; /* Clips edges if it gets too wide */
+    }
+
+    .info-block {
+        flex: 1; /* Take remaining space */
+        font-size: 0.75rem; /* Smaller text for system info */
+        padding-top: 5px;
+        min-width: 0; /* Allow text to wrap correctly */
+    }
+    
+    .info-block .label {
+        display: inline-block;
+        width: 45px; /* Align labels nicely */
+    }
+
+    /* --- 5. PROJECTS & BLOG (Card View) --- */
+    table, thead, tbody, th, td, tr {
+        display: block;
+    }
+
+    thead tr { 
+        position: absolute;
+        top: -9999px;
+        left: -9999px;
+    }
+
+    tbody tr {
+        border: 1px solid #333;
+        margin-bottom: 20px;
+        padding: 15px;
+        background: #050505;
+        border-radius: 4px;
+    }
+
+    td {
+        border: none;
+        padding-left: 0;
+        padding-bottom: 8px;
+    }
+
+    /* Card Styling for Tables */
+    td:nth-of-type(1) { /* Title */
+        font-size: 1.1rem; 
+        font-weight: bold; 
+        color: #fff; 
+        border-bottom: 1px dashed #222;
+        padding-bottom: 8px;
+        margin-bottom: 8px;
+    }
+
+    td:nth-of-type(4) a { /* Link Button */
+        display: inline-block;
+        margin-top: 5px;
+        background: #222;
+        padding: 8px 15px;
+        text-decoration: none;
+        color: white;
+        font-size: 0.8rem;
+        border: 1px solid #444;
+        width: 100%;
+        text-align: center;
+    }
+
+    /* --- 6. CERTIFICATES GRID (Big Icons Fix) --- */
+    .cert-grid {
+        flex-direction: column;
+    }
+    
+    .cert-card {
+        padding: 25px;
+        text-align: center; /* Center everything */
+    }
+
+    /* Force the Badge to be on TOP */
+    .cert-card > div:first-child {
+        flex-direction: column-reverse !important; 
+        align-items: center !important;
+        justify-content: center;
+    }
+
+    /* Remove padding from the text container so it centers properly */
+    .cert-card > div:first-child > div {
+        padding-right: 0 !important;
+        width: 100%;
+    }
+
+    /* Make the Badge LARGE */
+    .cert-badge-img {
+        width: 150px !important;  /* Force 150px width */
+        height: 150px !important; /* Force 150px height */
+        margin-left: 0 !important;
+        margin-bottom: 20px !important; /* Push text down */
+        object-fit: contain;
+    }
+
+    /* --- 7. FOOTER --- */
+    .status-bar-container {
+        position: sticky;
+        bottom: 0;
+        z-index: 999;
+    }
+    
+    .status-right {
+        display: none;
+    }
+}
