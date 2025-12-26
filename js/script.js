@@ -23,12 +23,11 @@ document.addEventListener('DOMContentLoaded', () => {
     
     let countdownInterval = null;
 
-   // ==========================================
+    // ==========================================
     // 0. AUTO-RESIZE GUTTER
     // ==========================================
     const updateGutter = () => {
         // MOBILE OPTIMIZATION: Stop calculation if gutter is hidden via CSS
-        // This prevents wasting memory on phones where line numbers aren't visible
         if (getComputedStyle(gutter).display === 'none') return;
 
         const h = bufferContent.scrollHeight;
@@ -53,8 +52,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         navItems.forEach(el => el.classList.remove('active'));
         
-        // Handle active state (special logic for blog details)
-        const selector = target === 'post-detail' ? `[data-target="blog"]` : `[data-target="${target}"]`;
+        // Handle active state
+        let selector = `[data-target="${target}"]`;
+        if (target === 'post-detail') selector = `[data-target="blog"]`; 
+        if (target === 'note-detail') selector = `[data-target="notes"]`;
+
         const activeNav = document.querySelector(selector);
         if (activeNav) activeNav.classList.add('active');
 
@@ -76,14 +78,29 @@ document.addEventListener('DOMContentLoaded', () => {
                 loadAllCertifications();
                 activeFileLabel.innerText = '~/certifications/';
                 break;
+                
+            // --- UPDATED BLOG LOGIC ---
             case 'blog':
                 loadBlogList();
                 activeFileLabel.innerText = '~/blog/';
                 break;
             case 'post-detail':
-                loadBlogPost(param);
+                // Pass 'blog' as second argument so Back button knows where to go
+                loadBlogPost(param, 'blog'); 
                 activeFileLabel.innerText = `~/blog/${param}`;
                 break;
+            
+            // --- UPDATED NOTES LOGIC ---
+            case 'notes':
+                loadNotesList();
+                activeFileLabel.innerText = '~/notes/';
+                break;
+            case 'note-detail':
+                // Pass 'notes' as second argument
+                loadBlogPost(param, 'notes'); 
+                activeFileLabel.innerText = `~/notes/${param}`;
+                break;
+                
             default:
                 loadNeofetch();
         }
@@ -131,16 +148,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 <pre class="ascii-art" style="font-size: 6px; line-height: 8px;">${art}</pre>
                 <div class="info-block" style="margin-top: 10px;">
                     <div><span class="label">User:</span><span class="val">1kb2</span></div>
-                    <div><span class="label">Host:</span><span class="val">x</span></div>
-                    <div><span class="label">OS:</span><span class="val">x</span></div>
-                    <div><span class="label">Kernel:</span><span class="val">x</span></div>
-                    <div><span class="label">Shell:</span><span class="val">x</span></div>
-                    <div><span class="label">Focus:</span><span class="val">x</span></div>
+                    <div><span class="label">Host:</span><span class="val">127.0.0.1</span></div>
+                    <div><span class="label">OS:</span><span class="val">Linux, MacOS, Solaris</span></div>
+                    <div><span class="label">Kernel:</span><span class="val">x86_64</span></div>
+                    <div><span class="label">Shell:</span><span class="val">FOC</span></div>
+                    <div><span class="label">Focus:</span><span class="val">tty1</span></div>
                     <br>
                     <div style="display:flex; gap:5px;">
                         <span style="background:white; width:20px; height:20px;"></span>
                         <span style="background:#888; width:20px; height:20px;"></span>
+                        <span style="background:#666; width:20px; height:20px;"></span>
                         <span style="background:#444; width:20px; height:20px;"></span>
+                        <span style="background:#222; width:20px; height:20px;"></span>
+                        <span style="background:#111; width:20px; height:20px;"></span>
                     </div>
                 </div>
             </div>
@@ -152,7 +172,7 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
             <div class="cert-separator"></div>
             <p style="color: #666;">// <strong>USAGE:</strong> Navigate using the sidebar or type commands below.</p>
-            <p style="color: #666;">// <strong>COMMANDS:</strong> :projects, :certifications, :blog, :about</p>
+            <p style="color: #666;">// <strong>COMMANDS:</strong> :projects, :certifications, :blog, :notes, :about</p>
         `;
     }
 
@@ -337,28 +357,71 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (e) { renderError("Could not load blog index."); console.error(e); }
     }
 
-    async function loadBlogPost(filename) {
+    // ==========================================
+    // 6. NOTES FUNCTIONS
+    // ==========================================
+    async function loadNotesList() {
+        try {
+            const res = await fetch('data/notes.json');
+            const notes = await res.json();
+            
+            let html = `<h1># Directory: ~/notes</h1>
+                        <p style="color:#666; margin-bottom:20px;">// Collection of raw notes, cheatsheets, and external resources.</p>
+                        <table>
+                            <thead><tr><th>DATE</th><th>TITLE</th><th>TYPE</th><th>DESCRIPTION</th></tr></thead>
+                            <tbody>`;
+            
+            notes.forEach(note => {
+                let typeIcon = '';
+                let clickAction = '';
+                
+                if (note.type === 'link') {
+                    typeIcon = `<span style="color:#3399ff">Click Here</span>`;
+                    clickAction = `window.open('${note.target}', '_blank')`;
+                } else {
+                    typeIcon = `<span style="color:#ffaa00">[MD 📄]</span>`;
+                    clickAction = `window.navigate('note-detail', '${note.target}')`;
+                }
+
+                html += `
+                <tr class="blog-row" onclick="${clickAction}" style="cursor: pointer;">
+                    <td style="white-space:nowrap; color:#888;">${note.date}</td>
+                    <td style="font-weight:bold; color:white;">${note.title}</td>
+                    <td>${typeIcon}</td>
+                    <td style="opacity:0.7;">${note.description}</td>
+                </tr>`;
+            });
+            html += `</tbody></table>`;
+            bufferContent.innerHTML = html;
+        } catch (e) { renderError("Could not load notes data. Ensure data/notes.json exists."); }
+    }
+
+    // ==========================================
+    // 7. MARKDOWN READER (Shared)
+    // ==========================================
+    async function loadBlogPost(filename, returnTarget = 'blog') {
         try {
             const res = await fetch(`data/posts/${filename}`);
-            if (!res.ok) throw new Error("Post not found");
+            if (!res.ok) throw new Error("File not found");
             const text = await res.text();
             
             // Parse Markdown
             const htmlContent = marked.parse(text);
             
             bufferContent.innerHTML = `
-                <button onclick="window.navigate('blog')" style="background:transparent; border:1px solid #333; color:#888; padding:5px 10px; margin-bottom:20px; font-family:inherit;">../ (BACK)</button>
+                <button onclick="window.navigate('${returnTarget}')" style="background:transparent; border:1px solid #333; color:#888; padding:5px 10px; margin-bottom:20px; cursor:pointer; font-family:inherit;">../ (BACK)</button>
+                
                 <div class="markdown-body">
                     ${htmlContent}
                 </div>
                 <div class="cert-separator"></div>
                 <p style="color:#444; text-align:center;">[ END OF FILE ]</p>
             `;
-        } catch (e) { renderError(`Error loading post: ${filename}`); }
+        } catch (e) { renderError(`Error loading file: ${filename}`); }
     }
 
     // ==========================================
-    // 6. COMMANDS
+    // 8. COMMANDS
     // ==========================================
     document.addEventListener('keydown', (e) => {
         if (e.key === ':' && document.activeElement !== vimCmd) {
@@ -378,7 +441,8 @@ document.addEventListener('DOMContentLoaded', () => {
         else if (cleanCmd === 'about') window.navigate('about');
         else if (cleanCmd === 'certifications') window.navigate('certifications');
         else if (cleanCmd === 'blog') window.navigate('blog');
-        else if (cleanCmd === 'help') alert('Commands: \n :about \n :projects \n :certifications \n :blog');
+        else if (cleanCmd === 'notes') window.navigate('notes');
+        else if (cleanCmd === 'help') alert('Commands: \n :about \n :projects \n :certifications \n :blog \n :notes');
         else alert(`E492: Not an editor command: ${cmd}`);
         vimCmd.value = '';
         vimCmd.blur();
