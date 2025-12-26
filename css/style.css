@@ -21,6 +21,13 @@ body {
     flex-direction: column;
 }
 
+/* --- Animations --- */
+/* Continuous Spin */
+@keyframes spin-y-axis {
+    0% { transform: rotateY(0deg); }
+    100% { transform: rotateY(360deg); }
+}
+
 /* --- Layout --- */
 .app-container { display: flex; flex: 1; overflow: hidden; }
 
@@ -38,52 +45,43 @@ body {
 .nav-item { padding: 5px 1rem; cursor: pointer; font-size: 0.9rem; display: flex; gap: 10px; }
 .nav-item:hover, .nav-item.active { background-color: var(--highlight); color: var(--highlight-text); }
 
-/* --- Main Buffer (The Scroll Fix) --- */
-/* We move the scrollbar to this wrapper so the Gutter and Content scroll together */
+/* --- Main Buffer --- */
 .main-buffer { 
     flex: 1; 
     display: flex; 
-    overflow-y: auto; /* Scrollbar lives here */
+    overflow-y: auto; 
     position: relative; 
 }
 
 .gutter {
     width: 50px;
-    min-height: 100%; /* Ensure it stretches with content */
+    min-height: 100%; 
     background: var(--bg-color);
     border-right: 1px dashed var(--border-color);
     text-align: right;
     padding-right: 10px;
-    
-    /* Fixed Alignment Settings */
     padding-top: 20px;
     font-size: 15px;
-    line-height: 24px; /* Matches content line-height */
-    
+    line-height: 24px; 
     color: #444;
     user-select: none;
-    flex-shrink: 0; /* Prevents shrinking */
+    flex-shrink: 0; 
 }
 
 .content { 
     flex: 1; 
     padding: 20px; 
-    overflow: visible; /* Let content grow */
-    
-    /* Fixed Alignment Settings */
+    overflow: visible; 
     font-size: 15px; 
-    line-height: 24px; /* Matches gutter line-height */
+    line-height: 24px; 
 }
 
-/* Ensure text inside cards aligns with the grid */
 .cert-card p, .cert-card h2 {
     line-height: 24px;
-    white-space: pre-wrap; /* Respects \n newlines */
+    white-space: pre-wrap; 
 }
 
 /* --- Components --- */
-
-/* Tables */
 table { width: 100%; border-collapse: collapse; margin-top: 20px; }
 th, td { text-align: left; padding: 8px; border-bottom: 1px dashed #444; }
 th { border-bottom: 1px solid var(--text-color); text-transform: uppercase; }
@@ -122,42 +120,33 @@ th { border-bottom: 1px solid var(--text-color); text-transform: uppercase; }
 }
 
 /* --- Certificate Styles --- */
-
-/* Badge Images (Large & Transparent) */
 .cert-badge-img {
-    width: 180px;        /* Fixed large size */
+    width: 180px;       
     height: 180px;       
-    object-fit: contain; /* Keeps aspect ratio */
+    object-fit: contain; 
     display: block;
-    margin-left: 20px;   /* Space from text */
-    
-    /* Hacker Vibe */
+    margin-left: 20px;   
     filter: grayscale(100%) contrast(1.2);
     opacity: 0.9;
-    
-    /* Remove borders/backgrounds for transparency */
     border: none; 
     background: transparent; 
     padding: 0;
 }
 
-/* Status Badges */
 .active-badge { border: 1px solid var(--active-green); color: var(--active-green); padding: 2px 6px; font-weight: bold; font-size: 0.8rem; letter-spacing: 1px; }
 .expired-badge { border: 1px solid var(--expired-red); color: var(--expired-red); padding: 2px 6px; font-weight: bold; font-size: 0.8rem; text-decoration: line-through; }
 .planned-badge { border: 1px solid var(--planned-orange); color: var(--planned-orange); padding: 2px 6px; font-weight: bold; font-size: 0.8rem; letter-spacing: 1px; }
 
-/* Progress Bar */
 .progress-container { width: 100%; height: 6px; border: 1px solid #333; margin-top: 5px; margin-bottom: 15px; position: relative; background: #111; }
 .progress-fill { height: 100%; background-color: #fff; transition: width 0.03s linear; }
 
-/* Grid Layout for Side-by-Side Certs */
 .issuer-section { margin-bottom: 60px; border-left: 2px solid #333; padding-left: 20px; }
 .issuer-title { color: #888; text-transform: uppercase; font-size: 0.9rem; margin-bottom: 20px; letter-spacing: 2px; font-weight: bold; }
 
 .cert-grid { display: flex; flex-wrap: wrap; gap: 30px; }
 
 .cert-card {
-    flex: 1 1 500px; /* Wide cards to fit text + big image */
+    flex: 1 1 500px; 
     background: #080808;
     border: 1px solid #222;
     padding: 25px;
@@ -167,90 +156,50 @@ th { border-bottom: 1px solid var(--text-color); text-transform: uppercase; }
     min-height: 250px; 
 }
 
-/* Typography & Utils */
+/* --- Typography & Utils & Neofetch --- */
 h1 { font-size: 1.5rem; margin-bottom: 1rem; border-bottom: 1px dashed white; padding-bottom: 0.5rem; }
 h2 { font-size: 1.2rem; margin-top: 1.5rem; margin-bottom: 0.5rem; }
 p { margin-bottom: 1rem; max-width: 800px; }
-.neofetch-container { display: flex; gap: 40px; margin-top: 20px; flex-wrap: wrap; }
-.ascii-art { color: var(--highlight); font-weight: bold; white-space: pre; line-height: 1.2; }
+
+/* Neofetch 3D Container */
+.neofetch-container { 
+    display: flex; 
+    gap: 40px; 
+    margin-top: 20px; 
+    flex-wrap: wrap;
+    perspective: 1000px; /* Adds 3D depth for spinning */
+}
+
+/* Spinning ASCII Art */
+.ascii-art { 
+    color: var(--highlight); 
+    font-weight: bold; 
+    white-space: pre; 
+    line-height: 1.2; 
+    
+    /* 3D Spin Animation: 12 seconds loop */
+    animation: spin-y-axis 12s linear infinite; 
+    transform-origin: center center;
+    transform-style: preserve-3d;
+}
+
 .info-block div { margin-bottom: 5px; }
 .label { color: #888; margin-right: 10px; }
 button { cursor: pointer; }
 
 /* --- Blog & Markdown Styling --- */
-.blog-row:hover {
-    background-color: #111;
-}
+.blog-row:hover { background-color: #111; }
 
-.markdown-body {
-    margin-top: 20px;
-    max-width: 800px;
-}
-
-.markdown-body h1 {
-    font-size: 1.8rem;
-    border-bottom: 2px solid #333;
-    margin-top: 30px;
-    margin-bottom: 20px;
-    color: #fff;
-}
-
-.markdown-body h2 {
-    font-size: 1.4rem;
-    margin-top: 25px;
-    margin-bottom: 15px;
-    color: #ddd;
-    border-bottom: 1px dashed #444;
-}
-
-.markdown-body h3 {
-    font-size: 1.1rem;
-    color: #aaa;
-    margin-top: 20px;
-}
-
-.markdown-body ul, .markdown-body ol {
-    margin-left: 20px;
-    margin-bottom: 15px;
-    color: #ccc;
-}
-
-.markdown-body li {
-    margin-bottom: 5px;
-}
-
-.markdown-body blockquote {
-    border-left: 3px solid #555;
-    padding-left: 15px;
-    color: #888;
-    margin: 20px 0;
-    font-style: italic;
-    background: #050505;
-    padding: 10px;
-}
-
-.markdown-body code {
-    background: #222;
-    padding: 2px 5px;
-    border-radius: 3px;
-    font-family: 'Fira Code', monospace;
-    font-size: 0.9em;
-    color: #ffaa00;
-}
-
-.markdown-body pre {
-    background: #111;
-    padding: 15px;
-    border: 1px solid #333;
-    overflow-x: auto;
-    margin-bottom: 20px;
-}
-
-.markdown-body pre code {
-    background: transparent;
-    padding: 0;
-    color: #ccc;
-}
+.markdown-body { margin-top: 20px; max-width: 800px; }
+.markdown-body h1 { font-size: 1.8rem; border-bottom: 2px solid #333; margin-top: 30px; margin-bottom: 20px; color: #fff; }
+.markdown-body h2 { font-size: 1.4rem; margin-top: 25px; margin-bottom: 15px; color: #ddd; border-bottom: 1px dashed #444; }
+.markdown-body h3 { font-size: 1.1rem; color: #aaa; margin-top: 20px; }
+.markdown-body ul, .markdown-body ol { margin-left: 20px; margin-bottom: 15px; color: #ccc; }
+.markdown-body li { margin-bottom: 5px; }
+.markdown-body blockquote { border-left: 3px solid #555; padding-left: 15px; color: #888; margin: 20px 0; font-style: italic; background: #050505; padding: 10px; }
+.markdown-body code { background: #222; padding: 2px 5px; border-radius: 3px; font-family: 'Fira Code', monospace; font-size: 0.9em; color: #ffaa00; }
+.markdown-body pre { background: #111; padding: 15px; border: 1px solid #333; overflow-x: auto; margin-bottom: 20px; }
+.markdown-body pre code { background: transparent; padding: 0; color: #ccc; }
 
 /* =========================================
    MOBILE RESPONSIVENESS (Max-Width 768px)
@@ -258,183 +207,62 @@ button { cursor: pointer; }
 @media (max-width: 768px) {
 
     /* --- 1. LAYOUT --- */
-    .app-container {
-        flex-direction: column;
-    }
+    .app-container { flex-direction: column; }
 
-    /* --- 2. SIDEBAR (Top Navigation Bar) --- */
-    .sidebar {
-        width: 100%;
-        height: auto;
-        border-right: none;
-        border-bottom: 1px solid #333;
-        padding: 0;
-        flex-shrink: 0;
-    }
-
-    .sidebar-header {
-        display: none;
-    }
-
-    #file-explorer {
-        display: flex;
-        overflow-x: auto; /* Scroll horizontally */
-        padding: 10px;
-        background: #000;
-        gap: 10px;
-        -webkit-overflow-scrolling: touch;
-    }
-
-    .nav-item {
-        white-space: nowrap;
-        border: 1px solid #333;
-        padding: 8px 15px;
-        background: #080808;
-        font-size: 0.85rem;
-        color: #888;
-    }
-
-    /* FIX: Active tab is now White Background / Black Text */
-    .nav-item.active {
-        background-color: #ffffff !important;
-        color: #000000 !important;
-        border-color: #ffffff;
-        font-weight: bold;
-    }
+    /* --- 2. SIDEBAR --- */
+    .sidebar { width: 100%; height: auto; border-right: none; border-bottom: 1px solid #333; padding: 0; flex-shrink: 0; }
+    .sidebar-header { display: none; }
+    #file-explorer { display: flex; overflow-x: auto; padding: 10px; background: #000; gap: 10px; -webkit-overflow-scrolling: touch; }
+    .nav-item { white-space: nowrap; border: 1px solid #333; padding: 8px 15px; background: #080808; font-size: 0.85rem; color: #888; }
+    
+    /* Active tab: White BG / Black Text */
+    .nav-item.active { background-color: #ffffff !important; color: #000000 !important; border-color: #ffffff; font-weight: bold; }
 
     /* --- 3. MAIN CONTENT --- */
-    .gutter {
-        display: none; /* Hide line numbers on mobile */
-    }
+    .gutter { display: none; }
+    .content { padding: 15px; font-size: 0.9rem; line-height: 1.4; overflow-x: hidden; }
 
-    .content {
-        padding: 15px;
-        font-size: 0.9rem;
-        line-height: 1.4;
-        overflow-x: hidden;
-    }
-
-    /* --- 4. ABOUT PAGE (Side-by-Side Fix) --- */
+    /* --- 4. ABOUT PAGE --- */
     .neofetch-container {
         display: flex;
-        flex-direction: row !important; /* Force side-by-side */
+        flex-direction: row !important; 
         flex-wrap: nowrap;
         align-items: flex-start !important;
-        gap: 5px; /* Tiny gap */
+        gap: 5px;
         overflow: hidden;
     }
 
     .ascii-art {
-        /* Increased size for better visibility */
         font-size: 4px !important; 
         line-height: 5px !important;
-        
         flex: 0 0 auto;
         margin-right: 5px;
         color: var(--highlight);
-        overflow: hidden; /* Clips edges if it gets too wide */
+        overflow: hidden; 
+        
+        /* Spin is INHERITED from desktop now (Removed 'animation: none') */
     }
 
-    .info-block {
-        flex: 1; /* Take remaining space */
-        font-size: 0.75rem; /* Smaller text for system info */
-        padding-top: 5px;
-        min-width: 0; /* Allow text to wrap correctly */
-    }
-    
-    .info-block .label {
-        display: inline-block;
-        width: 45px; /* Align labels nicely */
-    }
+    .info-block { flex: 1; font-size: 0.75rem; padding-top: 5px; min-width: 0; }
+    .info-block .label { display: inline-block; width: 45px; }
 
     /* --- 5. PROJECTS & BLOG (Card View) --- */
-    table, thead, tbody, th, td, tr {
-        display: block;
-    }
+    table, thead, tbody, th, td, tr { display: block; }
+    thead tr { position: absolute; top: -9999px; left: -9999px; }
+    tbody tr { border: 1px solid #333; margin-bottom: 20px; padding: 15px; background: #050505; border-radius: 4px; }
+    td { border: none; padding-left: 0; padding-bottom: 8px; }
 
-    thead tr { 
-        position: absolute;
-        top: -9999px;
-        left: -9999px;
-    }
-
-    tbody tr {
-        border: 1px solid #333;
-        margin-bottom: 20px;
-        padding: 15px;
-        background: #050505;
-        border-radius: 4px;
-    }
-
-    td {
-        border: none;
-        padding-left: 0;
-        padding-bottom: 8px;
-    }
-
-    /* Card Styling for Tables */
-    td:nth-of-type(1) { /* Title */
-        font-size: 1.1rem; 
-        font-weight: bold; 
-        color: #fff; 
-        border-bottom: 1px dashed #222;
-        padding-bottom: 8px;
-        margin-bottom: 8px;
-    }
-
-    td:nth-of-type(4) a { /* Link Button */
-        display: inline-block;
-        margin-top: 5px;
-        background: #222;
-        padding: 8px 15px;
-        text-decoration: none;
-        color: white;
-        font-size: 0.8rem;
-        border: 1px solid #444;
-        width: 100%;
-        text-align: center;
-    }
+    td:nth-of-type(1) { font-size: 1.1rem; font-weight: bold; color: #fff; border-bottom: 1px dashed #222; padding-bottom: 8px; margin-bottom: 8px; }
+    td:nth-of-type(4) a { display: inline-block; margin-top: 5px; background: #222; padding: 8px 15px; text-decoration: none; color: white; font-size: 0.8rem; border: 1px solid #444; width: 100%; text-align: center; }
 
     /* --- 6. CERTIFICATES GRID (Big Icons Fix) --- */
-    .cert-grid {
-        flex-direction: column;
-    }
-    
-    .cert-card {
-        padding: 25px;
-        text-align: center; /* Center everything */
-    }
-
-    /* Force the Badge to be on TOP */
-    .cert-card > div:first-child {
-        flex-direction: column-reverse !important; 
-        align-items: center !important;
-        justify-content: center;
-    }
-
-    /* Remove padding from the text container so it centers properly */
-    .cert-card > div:first-child > div {
-        padding-right: 0 !important;
-        width: 100%;
-    }
-
-    /* Make the Badge LARGE */
-    .cert-badge-img {
-        width: 150px !important;  /* Force 150px width */
-        height: 150px !important; /* Force 150px height */
-        margin-left: 0 !important;
-        margin-bottom: 20px !important; /* Push text down */
-        object-fit: contain;
-    }
+    .cert-grid { flex-direction: column; }
+    .cert-card { padding: 25px; text-align: center; }
+    .cert-card > div:first-child { flex-direction: column-reverse !important; align-items: center !important; justify-content: center; }
+    .cert-card > div:first-child > div { padding-right: 0 !important; width: 100%; }
+    .cert-badge-img { width: 150px !important; height: 150px !important; margin-left: 0 !important; margin-bottom: 20px !important; object-fit: contain; }
 
     /* --- 7. FOOTER --- */
-    .status-bar-container {
-        position: sticky;
-        bottom: 0;
-        z-index: 999;
-    }
-    
-    .status-right {
-        display: none;
-    }
+    .status-bar-container { position: sticky; bottom: 0; z-index: 999; }
+    .status-right { display: none; }
 }
