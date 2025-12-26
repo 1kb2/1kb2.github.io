@@ -2,13 +2,7 @@
   {
     "name": "h2cSmuGGl (Improved Fork of h2csmuggler)",
     "stack": "Python",
-    "description": "Detects and exploits HTTP/2 cleartext (h2c) upgrade vulnerabilities in misconfigured reverse proxies or edge servers.",
+    "description": "Detects and exploits HTTP/2 cleartext (h2c) upgrade vulnerabilities in <br> misconfigured reverse proxies or edge servers.",
     "github": "https://github.com/1kb2/h2cSmuGGl"
-  },
-  {
-    "name": "-",
-    "stack": "-",
-    "description": "-",
-    "github": "-"
   }
 ]
