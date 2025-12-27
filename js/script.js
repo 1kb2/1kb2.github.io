@@ -164,7 +164,16 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                 </div>
             </div>
-            <div style="margin-top: 40px; max-width: 800px; color: #ccc;">
+
+            <div class="social-links">
+                <a href="https://github.com/1kb2" target="_blank">[ GITHUB ]</a>
+                <a href="https://www.instagram.com/1kb2.xyz/" target="_blank">[ INSTAGRAM ]</a>
+                <a href="https://x.com/1kb2CTF" target="_blank">[ X ]</a>
+                <a href="https://TryHackMe.com/p/1kb2" target="_blank">[ TryHackMe ]</a>
+                <a href="https://app.hackthebox.com/users/2063195" target="_blank">[ HackTheBox ]</a>
+                <a href="#" onclick="alert('1kb2 is my username on discord and you can message me there.'); return false;">[ DISCORD ]</a>
+            </div>
+            <div style="margin-top: 20px; max-width: 800px; color: #ccc;">
                 <p>This website is a cybersecurity portfolio focused on practical learning, security research, and hands-on technical projects.</p>
                 <p>The content presented here documents real-world experiments, labs, and projects related to offensive security.</p>
                 <p>This portfolio reflects an approach centered on continuous learning, problem solving, and security mindset development.</p>
