@@ -1,0 +1,9 @@
+[
+  {
+    "name": "Pomodoro Timer",
+    "version": "v1.0",
+    "description": "Terminal-styled focus timer with customizable work/break intervals.",
+    "icon": "[ ⏱️ ]",
+    "link": "pomodoro/index.html"
+  }
+]

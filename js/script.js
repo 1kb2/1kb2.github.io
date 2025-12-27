@@ -78,29 +78,26 @@ document.addEventListener('DOMContentLoaded', () => {
                 loadAllCertifications();
                 activeFileLabel.innerText = '~/certifications/';
                 break;
-                
-            // --- UPDATED BLOG LOGIC ---
             case 'blog':
                 loadBlogList();
                 activeFileLabel.innerText = '~/blog/';
                 break;
             case 'post-detail':
-                // Pass 'blog' as second argument so Back button knows where to go
                 loadBlogPost(param, 'blog'); 
                 activeFileLabel.innerText = `~/blog/${param}`;
                 break;
-            
-            // --- UPDATED NOTES LOGIC ---
             case 'notes':
                 loadNotesList();
                 activeFileLabel.innerText = '~/notes/';
                 break;
             case 'note-detail':
-                // Pass 'notes' as second argument
                 loadBlogPost(param, 'notes'); 
                 activeFileLabel.innerText = `~/notes/${param}`;
                 break;
-                
+            case 'utils':
+                loadUtils();
+                activeFileLabel.innerText = '~/utils/';
+                break;
             default:
                 loadNeofetch();
         }
@@ -181,7 +178,7 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
             <div class="cert-separator"></div>
             <p style="color: #666;">// <strong>USAGE:</strong> Navigate using the sidebar or type commands below.</p>
-            <p style="color: #666;">// <strong>COMMANDS:</strong> :projects, :certifications, :blog, :notes, :about</p>
+            <p style="color: #666;">// <strong>COMMANDS:</strong> :projects, :certifications, :blog, :notes, :utils, :about</p>
         `;
     }
 
@@ -406,7 +403,45 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ==========================================
-    // 7. MARKDOWN READER (Shared)
+    // 7. UTILS FUNCTIONS (NEW)
+    // ==========================================
+    async function loadUtils() {
+        try {
+            const res = await fetch('data/utils.json');
+            const tools = await res.json();
+
+            let html = `<h1># Directory: ~/utils</h1>
+                        <p style="color:#666; margin-bottom:30px;">// Repository of web tools made by 1kb2.</p>
+                        <div class="util-grid">`;
+
+            tools.forEach(t => {
+                html += `
+                <div class="util-card" onclick="window.open('${t.link}', '_blank')">
+                    <div class="util-header">
+                        <span class="util-icon">${t.icon}</span>
+                        <span class="util-version">${t.version}</span>
+                    </div>
+                    <div class="util-body">
+                        <h3>${t.name}</h3>
+                        <p>${t.description}</p>
+                    </div>
+                    <div class="util-footer">
+                        <span class="exec-btn">[ ./EXECUTE ]</span>
+                    </div>
+                </div>`;
+            });
+
+            html += `</div>`;
+            html += `<div style="margin-top:40px; border-top:1px dashed #333; padding-top:10px; color:#444; font-size:0.8rem; text-align:center;">Total Tools: ${tools.length}</div>`;
+            
+            bufferContent.innerHTML = html;
+        } catch (e) { 
+            renderError("Could not load utils.json"); 
+        }
+    }
+
+    // ==========================================
+    // 8. MARKDOWN READER (Shared)
     // ==========================================
     async function loadBlogPost(filename, returnTarget = 'blog') {
         try {
@@ -430,7 +465,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ==========================================
-    // 8. COMMANDS
+    // 9. COMMANDS
     // ==========================================
     document.addEventListener('keydown', (e) => {
         if (e.key === ':' && document.activeElement !== vimCmd) {
@@ -451,7 +486,8 @@ document.addEventListener('DOMContentLoaded', () => {
         else if (cleanCmd === 'certifications') window.navigate('certifications');
         else if (cleanCmd === 'blog') window.navigate('blog');
         else if (cleanCmd === 'notes') window.navigate('notes');
-        else if (cleanCmd === 'help') alert('Commands: \n :about \n :projects \n :certifications \n :blog \n :notes');
+        else if (cleanCmd === 'utils') window.navigate('utils');
+        else if (cleanCmd === 'help') alert('Commands: \n :about \n :projects \n :certifications \n :blog \n :notes \n :utils');
         else alert(`E492: Not an editor command: ${cmd}`);
         vimCmd.value = '';
         vimCmd.blur();

@@ -230,6 +230,78 @@ button { cursor: pointer; }
     margin: -2px -5px; /* Keeps layout stable when padding adds width */
 }
 
+/* --- Utils Grid Layout (NEW) --- */
+.util-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 20px;
+    margin-top: 20px;
+}
+
+.util-card {
+    background: #080808;
+    border: 1px solid #333;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    min-height: 180px;
+}
+
+.util-card:hover {
+    border-color: #ffffff; /* Changed to White */
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(255, 255, 255, 0.1); /* Subtle white glow */
+}
+
+.util-card:hover .util-icon, 
+.util-card:hover h3, 
+.util-card:hover .exec-btn {
+    color: #ffffff; /* Changed to White */
+}
+
+.util-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 15px;
+    font-size: 0.8rem;
+    color: #666;
+}
+
+.util-icon {
+    font-size: 1.2rem;
+    color: #fff;
+}
+
+.util-card h3 {
+    margin: 0 0 10px 0;
+    font-size: 1.1rem;
+    color: #fff;
+    border: none;
+    padding: 0;
+}
+
+.util-card p {
+    font-size: 0.85rem;
+    color: #888;
+    line-height: 1.4;
+    margin-bottom: 20px;
+}
+
+.util-footer {
+    margin-top: auto;
+    text-align: right;
+}
+
+.exec-btn {
+    font-size: 0.8rem;
+    color: #666;
+    font-weight: bold;
+    transition: color 0.2s;
+}
+
 /* =========================================
    MOBILE RESPONSIVENESS (Max-Width 768px)
    ========================================= */
@@ -294,4 +366,7 @@ button { cursor: pointer; }
     /* --- 7. FOOTER --- */
     .status-bar-container { position: sticky; bottom: 0; z-index: 999; }
     .status-right { display: none; }
+
+    /* --- 8. UTILS GRID (Mobile Fix) --- */
+    .util-grid { grid-template-columns: 1fr; }
 }
