@@ -1,16 +1,16 @@
 [
   {
-    "title": "0x00: Entry Point",
-    "date": "2025-12-25",
-    "description": "An introduction to my background in offensive security, my philosophy on discipline and consistency, and an overview of the technical content featured in this archive.",
-    "filename": "welcome.md",
-    "tags": ["life"]
-  },
-  {
     "title": "0x01: 2026_Mission_Brief",
     "date": "2026-01-01",
     "description": "Defining the mission objectives for 2026. Technical objectives, certification roadmap, and acknowledgments to those who have supported me.",
     "filename": "2026.md",
     "tags": ["life", "2026", "roadmap"]
+  },
+  {
+    "title": "0x00: Entry Point",
+    "date": "2025-12-25",
+    "description": "An introduction to my background in offensive security, my philosophy on discipline and consistency, and an overview of the technical content featured in this archive.",
+    "filename": "welcome.md",
+    "tags": ["life"]
   }
 ]
