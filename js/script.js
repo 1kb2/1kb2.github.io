@@ -27,7 +27,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // 0. AUTO-RESIZE GUTTER
     // ==========================================
     const updateGutter = () => {
-        // MOBILE OPTIMIZATION: Stop calculation if gutter is hidden via CSS
         if (getComputedStyle(gutter).display === 'none') return;
 
         const h = bufferContent.scrollHeight;
@@ -45,14 +44,54 @@ document.addEventListener('DOMContentLoaded', () => {
     resizeObserver.observe(bufferContent);
 
     // ==========================================
-    // 1. ROUTER
+    // 1. ROUTER (Hybrid: Hash for Blog, Silent for rest)
     // ==========================================
-    window.navigate = async function(target, param = null) {
+    
+    window.navigate = function(target, param = null) {
+        
+        // CASE A: Blog Post -> Use Hash URL (Shareable)
+        if (target === 'post-detail') {
+            window.location.hash = `blog/${param}`; // Triggers handleRouting
+        } 
+        
+        // CASE B: Everything else -> Silent Navigation (Clean URL)
+        else {
+            // Remove hash if present, keeping URL clean
+            history.pushState("", document.title, window.location.pathname + window.location.search);
+            renderPage(target, param);
+        }
+    };
+
+    // Listen for URL changes (Only for Blog links or Back/Forward navigation)
+    window.addEventListener('hashchange', handleRouting);
+
+    // Initial Load Logic
+    function handleRouting() {
+        const hash = window.location.hash.substring(1); // Remove '#'
+        
+        if (!hash) {
+            renderPage('about');
+            return;
+        }
+
+        const parts = hash.split('/');
+        
+        // Only support deep linking for Blog Posts
+        if (parts[0] === 'blog' && parts.length > 1) {
+            renderPage('post-detail', parts.slice(1).join('/')); 
+        } else {
+            // Any other hash redirects to About (or you could support others if you change your mind)
+            renderPage('about'); 
+        }
+    }
+
+    // The Engine: Renders the content
+    async function renderPage(target, param = null) {
         if (countdownInterval) clearInterval(countdownInterval);
 
         navItems.forEach(el => el.classList.remove('active'));
         
-        // Handle active state
+        // Handle active sidebar state
         let selector = `[data-target="${target}"]`;
         if (target === 'post-detail') selector = `[data-target="blog"]`; 
         if (target === 'note-detail') selector = `[data-target="notes"]`;
@@ -83,7 +122,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 activeFileLabel.innerText = '~/blog/';
                 break;
             case 'post-detail':
-                loadBlogPost(param, 'blog'); 
+                loadBlogPost(param); // No second arg needed, we hardcode the back button
                 activeFileLabel.innerText = `~/blog/${param}`;
                 break;
             case 'notes':
@@ -91,7 +130,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 activeFileLabel.innerText = '~/notes/';
                 break;
             case 'note-detail':
-                loadBlogPost(param, 'notes'); 
+                loadBlogPost(param); 
                 activeFileLabel.innerText = `~/notes/${param}`;
                 break;
             case 'utils':
@@ -403,7 +442,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ==========================================
-    // 7. UTILS FUNCTIONS (NEW)
+    // 7. UTILS FUNCTIONS
     // ==========================================
     async function loadUtils() {
         try {
@@ -411,7 +450,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const tools = await res.json();
 
             let html = `<h1># Directory: ~/utils</h1>
-                        <p style="color:#666; margin-bottom:30px;">// Repository of web tools made by 1kb2.</p>
+                        <p style="color:#666; margin-bottom:30px;">// Repository of custom scripts and web tools.</p>
                         <div class="util-grid">`;
 
             tools.forEach(t => {
@@ -443,7 +482,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // ==========================================
     // 8. MARKDOWN READER (Shared)
     // ==========================================
-    async function loadBlogPost(filename, returnTarget = 'blog') {
+    async function loadBlogPost(filename) {
         try {
             const res = await fetch(`data/posts/${filename}`);
             if (!res.ok) throw new Error("File not found");
@@ -453,7 +492,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const htmlContent = marked.parse(text);
             
             bufferContent.innerHTML = `
-                <button onclick="window.navigate('${returnTarget}')" style="background:transparent; border:1px solid #333; color:#888; padding:5px 10px; margin-bottom:20px; cursor:pointer; font-family:inherit;">../ (BACK)</button>
+                <button onclick="window.navigate('about')" style="background:transparent; border:1px solid #333; color:#888; padding:5px 10px; margin-bottom:20px; cursor:pointer; font-family:inherit;">../ (HOME)</button>
                 
                 <div class="markdown-body">
                     ${htmlContent}
@@ -499,7 +538,18 @@ document.addEventListener('DOMContentLoaded', () => {
     
     function renderError(e) { bufferContent.innerHTML = `<h2 style="color:red">Error</h2><p>${e}</p>`; }
     
-    // Init
-    navItems.forEach(item => item.addEventListener('click', (e) => window.navigate(e.currentTarget.getAttribute('data-target'))));
-    window.navigate('about');
+    // ==========================================
+    // INIT
+    // ==========================================
+    
+    // 1. Sidebar Click Listeners
+    navItems.forEach(item => {
+        item.addEventListener('click', (e) => {
+            const target = e.currentTarget.getAttribute('data-target');
+            window.navigate(target);
+        });
+    });
+
+    // 2. Load Initial Page based on URL (Deep Linking support)
+    handleRouting();
 });
