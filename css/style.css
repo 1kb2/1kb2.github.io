@@ -302,6 +302,16 @@ button { cursor: pointer; }
     transition: color 0.2s;
 }
 
+/* --- Quote / Manifesto Styling --- */
+blockquote {
+    border-left: 2px solid #333;
+    padding-left: 15px;
+    margin: 20px 0;
+    color: #666;
+    font-style: italic;
+    background: transparent; /* or #050505 for a subtle box */
+}
+
 /* =========================================
    MOBILE RESPONSIVENESS (Max-Width 768px)
    ========================================= */
