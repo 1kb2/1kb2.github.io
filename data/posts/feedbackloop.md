@@ -1,12 +1,15 @@
-# Does your mind ever feel like a castle that you just can’t find the keys to?
+# Does your mind ever feel like a castle
+# that you just can’t find the keys to?
 
 Or let me put it this way: have you ever gained enough awareness to realize how much you don't know, effectively paralyzing any feeling of growth? Yeah, a bit heavy, right?
 
 This month didn’t start off so well for me, but to spare you the boring aspects of my life, here’s a (very) brief summary:
-<center>Been sick. </center>
-<center>Winter Break’s over. </center>
-<center>Responsibilities grew.</center>
-<center> And I got a personal objective to meet (more like a couple, actually).</center>
+
+> Been sick. 
+> Winter Break’s over. 
+> Responsibilities grew.
+> And I got a personal objective to meet (more like a couple, actually).
+
 
 # And here’s where the title comes into play
 
@@ -14,12 +17,13 @@ I bought this book right before summer ended, it’s called “The Subtle Art Of
 
 Well, I’m not going to spoil the book for you, but one of the chapters talks about something called the "Feedback Loop from Hell," and here’s an example:
 
-<center>You look at the syllabus and tell yourself, “The CJCA should be easy for me.”</center>
-<center>You start procrastinating because failing something you labeled “easy” would feel embarrassing.</center>
-<center>Then you worry about the procrastination.</center>
-<center>That worry makes you avoid studying even more.</center>
-<center>Now you’re stressed not about the CJCA, but about your own stress and delay — that’s the feedback loop from hell for ya.</center>
+> You look at the syllabus and tell yourself, “The CJCA should be easy for me.”
+> You start procrastinating because failing something you labeled “easy” would feel embarrassing.
+> Then you worry about the procrastination.
+> That worry makes you avoid studying even more.
+> Now you’re stressed not about the CJCA, but about your own stress and delay — that’s the feedback loop from hell for ya.
 
+<br>
 And yes it sounds very stupid, and yes it is childish, but it is also true—at least for me.
 
 
