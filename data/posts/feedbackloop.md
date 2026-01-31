@@ -48,7 +48,7 @@ Avoiding your weaknesses or protecting an inflated self-image? Yeah, that isn’
 
 ---
 
-<h4 style="text-align: center;">FightOvercomeConquer⸻DivineOrderFromWithin2026⸻1kb2</h4>
+<h4 style="text-align: center;">FightOvercomeConquer⸻1kb2⸻DivineOrderFromWithin2026</h4>
 
 ---
 
