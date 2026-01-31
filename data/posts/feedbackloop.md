@@ -40,3 +40,13 @@ Avoiding your weaknesses or protecting an inflated self-image? Yeah, that isn’
 
 # Update
 92,7% done with the CJCA path and will hopefully be attempting the exam next month.
+
+
+
+
+
+---
+
+<h4 style="text-align: center;">FightOvercomeConquer⸻DivineOrderFromWithin2026⸻1kb2</h4>
+
+---
