@@ -1,5 +1,4 @@
-# Does your mind ever feel like a castle
-# that you just can’t find the keys to?
+# Does your mind ever feel like a castle that you just can’t find the keys to?
 
 Or let me put it this way: have you ever gained enough awareness to realize how much you don't know, effectively paralyzing any feeling of growth? Yeah, a bit heavy, right?
 
