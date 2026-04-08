@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>About — 1kb2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&family=Figtree:wght@300;400;500&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="css/main.css"/>
+</head>
+<body>
+
+<nav>
+  <a href="index.html" class="nav-logo">1<span>k</span>b2</a>
+  <ul class="nav-links">
+    <li><a href="about.html">about</a></li>
+    <li><a href="blog.html">blog</a></li>
+    <li><a href="certs.html">certs</a></li>
+    <li><a href="projects.html">projects</a></li>
+    <li><a href="fpv.html">fpv</a></li>
+    <li><a href="contact.html">contact</a></li>
+  </ul>
+  <button class="nav-hamburger" id="nav-toggle" aria-label="Menu"><span></span><span></span><span></span></button>
+</nav>
+
+<div class="page-hero">
+  <div class="page-hero-bg">
+    <div class="page-hero-grid"></div>
+    <div class="page-hero-glow"></div>
+  </div>
+  <div class="page-eyebrow">01 — About</div>
+  <h1>Who I <em>am.</em></h1>
+  <p>Security and relentless curiosity.</p>
+</div>
+
+<section style="border-top: 1px solid var(--border); padding: 5rem 3rem;">
+  <div class="about-grid reveal">
+    <div class="about-photo">
+      <img src="images/bere.jpg" alt="1kb2"/>
+      <div class="about-photo-cap">1kb2 — i also love mountains</div>
+    </div>
+    <div class="about-text">
+      <p>Welcome! This is my personal cybersecurity portfolio — a space where I document my journey through practical learning, security research, and hands-on technical projects.</p>
+      <p>You'll find real-world experiments, labs, and write-ups exploring offensive security concepts, all built around a genuine curiosity for how things work (and how they can be broken).</p>
+      <p>Alongside the cybersecurity side of things, I also have a passion for FPV — from building and tuning quads to pushing the limits of freestyle. Both worlds share the same spirit: tinkering, problem-solving, and always learning something new.</p>
+      <p>This portfolio is my way of sharing that journey — showcasing technical skills, practical experience, and the mindset that drives it all. Whether you're here for the security content, the FPV builds, or just to explore, welcome aboard!</p>
+      <p style="font-family: var(--mono); font-size: 0.9rem; color: var(--accent); margin-top: 2rem; letter-spacing: 0.04em;">bits, signals &amp; propellers.</p>
+
+    </div>
+  </div>
+</section>
+
+<footer>
+  <span>1kb2.xyz</span>
+  <span>bits, signals &amp; propellers</span>
+</footer>
+
+<script>
+const observer = new IntersectionObserver(entries => {
+  entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });
+}, { threshold: 0.08 });
+document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+const navToggle = document.getElementById('nav-toggle');
+const navLinks = document.querySelector('.nav-links');
+if (navToggle && navLinks) {
+  navToggle.addEventListener('click', () => { navToggle.classList.toggle('open'); navLinks.classList.toggle('open'); });
+  navLinks.querySelectorAll('a').forEach(a => a.addEventListener('click', () => { navToggle.classList.remove('open'); navLinks.classList.remove('open'); }));
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Certifications — 1kb2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&family=Figtree:wght@300;400;500&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="css/main.css"/>
+</head>
+<body>
+
+<nav>
+  <a href="index.html" class="nav-logo">1<span>k</span>b2</a>
+  <ul class="nav-links">
+    <li><a href="about.html">about</a></li>
+    <li><a href="blog.html">blog</a></li>
+    <li><a href="certs.html">certs</a></li>
+    <li><a href="projects.html">projects</a></li>
+    <li><a href="fpv.html">fpv</a></li>
+    <li><a href="contact.html">contact</a></li>
+  </ul>
+  <button class="nav-hamburger" id="nav-toggle" aria-label="Menu"><span></span><span></span><span></span></button>
+</nav>
+
+<div class="page-hero">
+  <div class="page-hero-bg">
+    <div class="page-hero-grid"></div>
+    <div class="page-hero-glow"></div>
+  </div>
+  <div class="page-eyebrow">03 — Certifications</div>
+  <h1>The <em>roadmap.</em></h1>
+  <p>Earned, active, and planned — every cert with a live countdown to expiry or exam date.</p>
+</div>
+
+<section class="certs-bg" style="border-top: 1px solid var(--border); padding: 5rem 3rem;">
+  <div id="cert-container" class="reveal">
+    <div class="loading">Loading</div>
+  </div>
+</section>
+
+<footer>
+  <span>1kb2.xyz</span>
+  <span>bits, signals &amp; propellers</span>
+</footer>
+
+<script>
+const observer = new IntersectionObserver(entries => {
+  entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });
+}, { threshold: 0.08 });
+document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+let timerInterval = null;
+function pad(n, s = 2) { return n.toString().padStart(s, '0'); }
+
+function renderCerts(data) {
+  const grouped = {};
+  data.forEach(c => { const k = c.issuer || 'Other'; if (!grouped[k]) grouped[k] = []; grouped[k].push(c); });
+
+  let html = '';
+  for (const issuer in grouped) {
+    html += `<div class="cert-issuer-block"><div class="cert-issuer-label">${issuer}</div><div class="cert-grid">`;
+    grouped[issuer].forEach(cert => {
+      const isPlanned = cert.status === 'planned';
+      const noExpiry  = cert.no_expiry === true;
+      const badge = cert.badge_image ? `<img src="${cert.badge_image}" alt="" class="cert-badge-img">` : '';
+
+      let footer = '';
+      if (noExpiry) {
+        footer = `<div class="cert-dates"><span>${cert.date_earned.split('T')[0]}</span><span style="color:var(--green)">NO EXPIRY</span></div>`;
+      } else if (isPlanned) {
+        const d = cert.exam_date === '-' ? 'TBD' : cert.exam_date.split('T')[0];
+        footer = `<div class="cert-dates"><span style="color:var(--amber)">TARGET: ${d}</span></div>`;
+      } else {
+        footer = `<div class="progress-label">EXPIRY PROGRESS</div>
+          <div class="progress-track"><div id="fill-${cert.id}" class="progress-fill" style="width:0%"></div></div>
+          <div class="cert-dates"><span>${cert.date_earned.split('T')[0]}</span><span>${cert.expiry_date.split('T')[0]}</span></div>`;
+      }
+
+      html += `<div class="cert-card">
+        ${badge ? `<div class="cert-badge-wrap">${badge}</div>` : ''}
+        <div class="cert-name">${cert.name}</div>
+        <div class="cert-desc">${cert.description.replace(/<br><br>/g,' ')}</div>
+        <div class="cert-status-row"><span class="cert-status-label">STATUS:</span><span id="badge-${cert.id}">—</span></div>
+        <div id="timer-${cert.id}" class="cert-timer">—</div>
+        ${footer}
+      </div>`;
+    });
+    html += `</div></div>`;
+  }
+
+  document.getElementById('cert-container').innerHTML = html;
+  tick(data);
+  if (timerInterval) clearInterval(timerInterval);
+  timerInterval = setInterval(() => tick(data), 30);
+}
+
+function tick(data) {
+  const now = Date.now();
+  data.forEach(cert => {
+    const elBadge = document.getElementById(`badge-${cert.id}`);
+    const elTimer = document.getElementById(`timer-${cert.id}`);
+    const elFill  = document.getElementById(`fill-${cert.id}`);
+    if (!elTimer) return;
+
+    const isPlanned = cert.status === 'planned';
+    const noExpiry  = cert.no_expiry === true;
+
+    if (noExpiry) {
+      elBadge.innerHTML = `<span class="badge-active">ACTIVE</span>`;
+      elTimer.textContent = 'DOES NOT EXPIRE';
+      elTimer.className = 'cert-timer no-expiry';
+      return;
+    }
+    if (isPlanned && cert.exam_date === '-') {
+      elBadge.innerHTML = `<span class="badge-planned">PLANNED</span>`;
+      elTimer.textContent = 'DATE NOT SET';
+      elTimer.className = 'cert-timer is-planned';
+      return;
+    }
+
+    const target = new Date(isPlanned ? cert.exam_date : cert.expiry_date).getTime();
+    const start  = !isPlanned ? new Date(cert.date_earned).getTime() : null;
+    const dist   = target - now;
+
+    elBadge.innerHTML = isPlanned
+      ? (dist < 0 ? `<span class="badge-expired">OVERDUE</span>` : `<span class="badge-planned">PLANNED</span>`)
+      : (dist < 0 ? `<span class="badge-expired">EXPIRED</span>` : `<span class="badge-active">ACTIVE</span>`);
+
+    if (dist <= 0) {
+      elTimer.textContent = '00d 00h 00m 00s 000ms';
+      if (elFill) { elFill.style.width = '100%'; elFill.className = 'progress-fill crit'; }
+      return;
+    }
+
+    const days = Math.floor(dist / 86400000);
+    const hrs  = Math.floor((dist % 86400000) / 3600000);
+    const mins = Math.floor((dist % 3600000) / 60000);
+    const secs = Math.floor((dist % 60000) / 1000);
+    const ms   = dist % 1000;
+    elTimer.textContent = `${days}d ${pad(hrs)}h ${pad(mins)}m ${pad(secs)}s ${pad(ms,3)}ms`;
+    elTimer.className = isPlanned ? 'cert-timer is-planned' : 'cert-timer';
+
+    if (!isPlanned && elFill && start) {
+      const pct = Math.min(((now - start) / (target - start)) * 100, 100);
+      elFill.style.width = `${pct}%`;
+      elFill.className = 'progress-fill' + (pct > 85 ? ' crit' : pct > 60 ? ' warn' : '');
+    }
+  });
+}
+
+const FALLBACK = [
+  { id:'cert_002', name:'HTB Certified Junior Cybersecurity Associate', issuer:'HackTheBox', date_earned:'2026-03-30T09:00:00', no_expiry:true, description:'Validates the foundational skills necessary to identify and exploit common vulnerabilities, perform penetration testing activities, and conduct SIEM-assisted security monitoring and intrusion detection.', badge_image:'images/CJCA.png' },
+  { id:'cert_001', name:'CompTIA Security+', issuer:'CompTIA', date_earned:'2025-12-10T09:00:00', expiry_date:'2028-12-10T09:00:00', description:'Validates the foundational skills necessary to assess threats, secure networks and devices, and manage risk, compliance, and incident response.', badge_image:'images/securityplus.png' }
+];
+
+fetch('data/certificates.json').then(r => r.json()).then(renderCerts).catch(() => renderCerts(FALLBACK));
+
+const navToggle = document.getElementById('nav-toggle');
+const navLinks = document.querySelector('.nav-links');
+if (navToggle && navLinks) {
+  navToggle.addEventListener('click', () => { navToggle.classList.toggle('open'); navLinks.classList.toggle('open'); });
+  navLinks.querySelectorAll('a').forEach(a => a.addEventListener('click', () => { navToggle.classList.remove('open'); navLinks.classList.remove('open'); }));
+}
+</script>
+</body>
+</html>

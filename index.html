@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>1kb2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&family=Figtree:wght@300;400;500&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="css/main.css"/>
+</head>
+<body>
+
+<nav>
+  <a href="index.html" class="nav-logo">1<span>k</span>b2</a>
+  <ul class="nav-links">
+    <li><a href="about.html">about</a></li>
+    <li><a href="blog.html">blog</a></li>
+    <li><a href="certs.html">certs</a></li>
+    <li><a href="projects.html">projects</a></li>
+    <li><a href="fpv.html">fpv</a></li>
+    <li><a href="contact.html">contact</a></li>
+  </ul>
+  <button class="nav-hamburger" id="nav-toggle" aria-label="Menu"><span></span><span></span><span></span></button>
+</nav>
+
+<section class="hero">
+  <div class="hero-bg">
+    <div class="hero-grid"></div>
+    <div class="hero-glow"></div>
+  </div>
+  <div class="hero-tag">bits, signals &amp; propellers</div>
+  <h1>Hack.<br/>Build.<br/><em>Fly.</em></h1>
+  <p class="hero-sub">Offensive security, FPV drones, and building things. This is my corner of the internet.</p>
+  <div class="hero-ctas">
+    <a href="certs.html" class="btn btn-primary">View certs ↓</a>
+    <a href="about.html" class="btn btn-primary">About me</a>
+    <a href="contact.html" class="btn btn-ghost">Get in touch</a>
+  </div>
+  <div class="hero-scroll"><div class="scroll-line"></div>scroll</div>
+</section>
+
+<section id="overview" style="border-top: 1px solid var(--border); padding: 5rem 3rem;">
+  <div class="section-header reveal">
+    <span class="section-num">—</span>
+    <h2 class="section-title">What's here</h2>
+  </div>
+  <div class="nav-cards reveal">
+    <a href="about.html" class="nav-card">
+      <span class="nav-card-num">01</span>
+      <div class="nav-card-title">About</div>
+      <p class="nav-card-desc">Who I am, what I do, and how I approach both security and building things.</p>
+      <span class="nav-card-arrow">↗</span>
+    </a>
+    <a href="blog.html" class="nav-card">
+      <span class="nav-card-num">02</span>
+      <div class="nav-card-title">Blog</div>
+      <p class="nav-card-desc">Write-ups, reflections, and technical notes on security and the journey.</p>
+      <span class="nav-card-arrow">↗</span>
+    </a>
+    <a href="certs.html" class="nav-card">
+      <span class="nav-card-num">03</span>
+      <div class="nav-card-title">Certifications</div>
+      <p class="nav-card-desc">My certification roadmap — earned, active, and planned with live countdowns.</p>
+      <span class="nav-card-arrow">↗</span>
+    </a>
+    <a href="projects.html" class="nav-card">
+      <span class="nav-card-num">04</span>
+      <div class="nav-card-title">Projects</div>
+      <p class="nav-card-desc">Tools, scripts, CTF work, and open-source security utilities I've built.</p>
+      <span class="nav-card-arrow">↗</span>
+    </a>
+    <a href="fpv.html" class="nav-card">
+      <span class="nav-card-num">05</span>
+      <div class="nav-card-title">FPV</div>
+      <p class="nav-card-desc">Freestyle quads, build logs, component specs, and first-person flying.</p>
+      <span class="nav-card-arrow">↗</span>
+    </a>
+    <a href="contact.html" class="nav-card">
+      <span class="nav-card-num">06</span>
+      <div class="nav-card-title">Contact</div>
+      <p class="nav-card-desc">GitHub, HackTheBox, TryHackMe, and everywhere else I can be found.</p>
+      <span class="nav-card-arrow">↗</span>
+    </a>
+  </div>
+</section>
+
+<footer>
+  <span>1kb2.xyz</span>
+  <span>bits, signals &amp; propellers</span>
+</footer>
+
+<script>
+const observer = new IntersectionObserver(entries => {
+  entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });
+}, { threshold: 0.08 });
+document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+const navToggle = document.getElementById('nav-toggle');
+const navLinks = document.querySelector('.nav-links');
+if (navToggle && navLinks) {
+  navToggle.addEventListener('click', () => {
+    navToggle.classList.toggle('open');
+    navLinks.classList.toggle('open');
+  });
+  navLinks.querySelectorAll('a').forEach(a => a.addEventListener('click', () => {
+    navToggle.classList.remove('open');
+    navLinks.classList.remove('open');
+  }));
+}
+</script>
+</body>
+</html>

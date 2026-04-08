@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Contact — 1kb2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&family=Figtree:wght@300;400;500&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="css/main.css"/>
+</head>
+<body>
+
+<nav>
+  <a href="index.html" class="nav-logo">1<span>k</span>b2</a>
+  <ul class="nav-links">
+    <li><a href="about.html">about</a></li>
+    <li><a href="blog.html">blog</a></li>
+    <li><a href="certs.html">certs</a></li>
+    <li><a href="projects.html">projects</a></li>
+    <li><a href="fpv.html">fpv</a></li>
+    <li><a href="contact.html">contact</a></li>
+  </ul>
+  <button class="nav-hamburger" id="nav-toggle" aria-label="Menu"><span></span><span></span><span></span></button>
+</nav>
+
+
+<section style="border-top: 1px solid var(--border); padding: 8rem 3rem 5rem; min-height: calc(100vh - 60px); display: flex; flex-direction: column; justify-content: flex-end;">
+  <div class="contact-big reveal">
+    Lets<br/><em>talk.</em>
+  </div>
+  <div class="contact-links reveal" style="transition-delay: 0.1s;">
+    <a href="#" class="contact-link" id="email-link" onclick="showEmailPopup(); return false;">↗ Email</a>
+    <a href="https://github.com/1kb2" target="_blank" rel="noopener" class="contact-link">↗ GitHub</a>
+    <a href="https://app.hackthebox.com/users/2063195" target="_blank" rel="noopener" class="contact-link">↗ HackTheBox</a>
+    <a href="https://TryHackMe.com/p/1kb2" target="_blank" rel="noopener" class="contact-link">↗ TryHackMe</a>
+    <a href="https://x.com/1kb2CTF" target="_blank" rel="noopener" class="contact-link">↗ Twitter / X</a>
+    <a href="https://www.instagram.com/1kb2.xyz/" target="_blank" rel="noopener" class="contact-link">↗ Instagram</a>
+  </div>
+</section>
+
+<footer>
+  <span>1kb2.xyz</span>
+  <span>bits, signals &amp; propellers</span>
+</footer>
+
+<!-- Email / PGP Modal -->
+<div id="pgp-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:1000; align-items:center; justify-content:center;">
+  <div style="background:var(--bg2); border:1px solid var(--border); border-radius:4px; padding:2.5rem; max-width:680px; width:90%; max-height:85vh; overflow-y:auto; position:relative;">
+    <button onclick="closeEmailPopup()" style="position:absolute; top:1rem; right:1rem; background:none; border:none; color:var(--muted2); font-size:1.2rem; cursor:pointer; line-height:1;">✕</button>
+    <div style="font-family:var(--mono); font-size:0.65rem; color:var(--accent); letter-spacing:0.1em; text-transform:uppercase; margin-bottom:1rem;">Contact</div>
+    <div style="font-family:var(--display); font-weight:700; font-size:1rem; margin-bottom:0.25rem;">Email</div>
+    <div style="font-family:var(--mono); font-size:0.85rem; color:var(--muted2); margin-bottom:1.5rem;">whois1kb2@proton.me</div>
+    <div style="font-family:var(--display); font-weight:700; font-size:1rem; margin-bottom:0.5rem;">PGP Public Key</div>
+    <pre style="font-family:var(--mono); font-size:0.65rem; color:var(--muted2); background:var(--bg); border:1px solid var(--border); border-radius:3px; padding:1rem; overflow-x:auto; white-space:pre-wrap; word-break:break-all; line-height:1.6;">-----BEGIN PGP PUBLIC KEY BLOCK-----
+
+xjMEaXprVxYJKwYBBAHaRw8BAQdAyg+9biYSe8ke+zUb8xSn3RImRousoufM
+SMeBptX7JdDNKXdob2lzMWtiMkBwcm90b24ubWUgPHdob2lzMWtiMkBwcm90
+b24ubWU+wsAQBBMWCgCCBYJpemtXAwsJBwkQOpi7/wB044xFFAAAAAAAHAAg
+c2FsdEBub3RhdGlvbnMub3BlbnBncGpzLm9yZwOXOOf4bEJGMJwsKnkglC2M
+65uOs1YryLD/70dlAWafAxUKCAMWAAICGQECmwMCHgEWIQRFAOHd2GM5GFh9
+eL86mLv/AHTjjAAAZwoBAPjEQkWmol02ahQbikmB8+yH7yL+B8YD8Xpn9ZSA
+FgoRAQDlKLRUK5b8oU51f+WkhNWd/JfIh4NLG0JrEQK2zYw7Cs44BGl6a1cS
+CisGAQQBl1UBBQEBB0C+ZqjhPFhGoHbm1wy4vaZ1WojAuQnHrn1RFkFCFq0E
+WwMBCgnCvgQYFgoAcAWCaXprVwkQOpi7/wB044xFFAAAAAAAHAAgc2FsdEBu
+b3RhdGlvbnMub3BlbnBncGpzLm9yZz93ul77QkP7Qp/rmmKHykAr9biOtS37
+48P/GMaPeOFEApsMFiEERQDh3dhjORhYfXi/Opi7/wB044wAAE7OAQCothbc
+deSN3kTy6s7qr2MUmDbcB8Y0Uflf2sshdjAMXAEA1yM+8HnSobYdmFxC/En+
+ccDzAbJJ2/8Ez3vjFwEWvwA=
+=/g1p
+-----END PGP PUBLIC KEY BLOCK-----</pre>
+  </div>
+</div>
+
+<script>
+const observer = new IntersectionObserver(entries => {
+  entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });
+}, { threshold: 0.08 });
+document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+function showEmailPopup() {
+  const modal = document.getElementById('pgp-modal');
+  modal.style.display = 'flex';
+}
+function closeEmailPopup() {
+  document.getElementById('pgp-modal').style.display = 'none';
+}
+document.getElementById('pgp-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeEmailPopup();
+});
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') closeEmailPopup();
+});
+
+const navToggle = document.getElementById('nav-toggle');
+const navLinks = document.querySelector('.nav-links');
+if (navToggle && navLinks) {
+  navToggle.addEventListener('click', () => { navToggle.classList.toggle('open'); navLinks.classList.toggle('open'); });
+  navLinks.querySelectorAll('a').forEach(a => a.addEventListener('click', () => { navToggle.classList.remove('open'); navLinks.classList.remove('open'); }));
+}
+</script>
+</body>
+</html>

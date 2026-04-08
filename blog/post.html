@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Post — 1kb2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&family=Figtree:wght@300;400;500&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="../css/main.css"/>
+</head>
+<body>
+
+<nav>
+  <a href="../index.html" class="nav-logo">1<span>k</span>b2</a>
+  <ul class="nav-links">
+    <li><a href="../about.html">about</a></li>
+    <li><a href="../blog.html" class="active">blog</a></li>
+    <li><a href="../certs.html">certs</a></li>
+    <li><a href="../projects.html">projects</a></li>
+    <li><a href="../fpv.html">fpv</a></li>
+    <li><a href="../contact.html">contact</a></li>
+  </ul>
+  <button class="nav-hamburger" id="nav-toggle" aria-label="Menu"><span></span><span></span><span></span></button>
+</nav>
+
+<div class="page-hero" id="post-header">
+  <div class="page-hero-bg">
+    <div class="page-hero-grid"></div>
+    <div class="page-hero-glow"></div>
+  </div>
+  <div class="page-eyebrow" id="post-eyebrow">Blog</div>
+  <h1 id="post-title" style="font-size: clamp(2rem,5vw,3.5rem);">Loading<em>.</em></h1>
+  <p id="post-meta" style="margin-top:1rem;"></p>
+</div>
+
+<section style="border-top: 1px solid var(--border); padding: 5rem 3rem; display: flex; flex-direction: column; align-items: center;">
+  <div style="width: 100%; max-width: 720px;">
+    <div id="post-tags" class="post-tags reveal"></div>
+    <div id="post-body" class="post-body reveal">
+      <div class="loading">Loading</div>
+    </div>
+    <div style="margin-top: 4rem; padding-top: 2rem; border-top: 1px solid var(--border);" class="reveal">
+      <a href="../blog.html" style="display: inline-flex; align-items: center; gap: 0.6rem; font-family: var(--mono); font-size: 0.78rem; color: var(--muted2); text-decoration: none; letter-spacing: 0.04em; border: 1px solid var(--border); padding: 0.6rem 1.2rem; border-radius: 3px; transition: all 0.2s;" onmouseover="this.style.color='var(--text)';this.style.borderColor='var(--border-hover)'" onmouseout="this.style.color='var(--muted2)';this.style.borderColor='var(--border)'">← Back to blog</a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <span>1kb2.xyz</span>
+  <span>bits, signals &amp; propellers</span>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script>
+const observer = new IntersectionObserver(entries => {
+  entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });
+}, { threshold: 0.08 });
+
+const params = new URLSearchParams(window.location.search);
+const file = params.get('file');
+
+if (!file) {
+  document.getElementById('post-title').textContent = 'Post not found.';
+  document.getElementById('post-body').innerHTML = '<p style="color:var(--muted2)">No post specified. <a href="../blog.html" style="color:var(--accent)">Back to blog</a>.</p>';
+} else {
+  // Load blog metadata to get post info
+  fetch('../data/blog.json')
+    .then(r => r.json())
+    .catch(() => [])
+    .then(posts => {
+      const meta = posts.find(p => p.filename === file);
+      if (meta) {
+        document.title = meta.title + ' — 1kb2';
+        document.getElementById('post-title').innerHTML = meta.title.replace(/:/g, ':<em style="color:var(--accent)">') + '</em>';
+        document.getElementById('post-title').innerHTML = meta.title;
+
+        const d = new Date(meta.date);
+        const dateStr = d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+        document.getElementById('post-meta').textContent = dateStr;
+
+        if (meta.tags && meta.tags.length) {
+          document.getElementById('post-tags').innerHTML = meta.tags.map(t =>
+            `<span class="post-tag-item">${t}</span>`
+          ).join('');
+        }
+      }
+    });
+
+  // Load and render the markdown file
+  fetch('../data/posts/' + file)
+    .then(r => {
+      if (!r.ok) throw new Error('Not found');
+      return r.text();
+    })
+    .then(md => {
+      marked.setOptions({ breaks: true, gfm: true });
+      document.getElementById('post-body').innerHTML = marked.parse(md);
+      // Update title from first H1 if no metadata
+      const h1 = document.querySelector('#post-body h1');
+      if (h1 && document.getElementById('post-title').textContent === 'Loading.') {
+        document.getElementById('post-title').textContent = h1.textContent;
+        h1.remove();
+      }
+    })
+    .catch(() => {
+      document.getElementById('post-body').innerHTML = '<p style="color:var(--muted2)">Could not load post. <a href="../blog.html" style="color:var(--accent)">Back to blog</a>.</p>';
+    })
+    .finally(() => {
+      document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+    });
+}
+
+document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+const navToggle = document.getElementById('nav-toggle');
+const navLinks = document.querySelector('.nav-links');
+if (navToggle && navLinks) {
+  navToggle.addEventListener('click', () => { navToggle.classList.toggle('open'); navLinks.classList.toggle('open'); });
+  navLinks.querySelectorAll('a').forEach(a => a.addEventListener('click', () => { navToggle.classList.remove('open'); navLinks.classList.remove('open'); }));
+}
+</script>
+</body>
+</html>

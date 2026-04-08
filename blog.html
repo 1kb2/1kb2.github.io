@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Blog — 1kb2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&family=Figtree:wght@300;400;500&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="css/main.css"/>
+</head>
+<body>
+
+<nav>
+  <a href="index.html" class="nav-logo">1<span>k</span>b2</a>
+  <ul class="nav-links">
+    <li><a href="about.html">about</a></li>
+    <li><a href="blog.html">blog</a></li>
+    <li><a href="certs.html">certs</a></li>
+    <li><a href="projects.html">projects</a></li>
+    <li><a href="fpv.html">fpv</a></li>
+    <li><a href="contact.html">contact</a></li>
+  </ul>
+  <button class="nav-hamburger" id="nav-toggle" aria-label="Menu"><span></span><span></span><span></span></button>
+</nav>
+
+<div class="page-hero">
+  <div class="page-hero-bg">
+    <div class="page-hero-grid"></div>
+    <div class="page-hero-glow"></div>
+  </div>
+  <div class="page-eyebrow">02 — Blog</div>
+  <h1>The <em>archive.</em></h1>
+  <p>Write-ups, reflections, and technical notes on security, building, and the journey.</p>
+</div>
+
+<section style="border-top: 1px solid var(--border); padding: 5rem 3rem;">
+  <div id="blog-container" class="reveal">
+    <div class="loading">Loading</div>
+  </div>
+</section>
+
+<footer>
+  <span>1kb2.xyz</span>
+  <span>bits, signals &amp; propellers</span>
+</footer>
+
+<script>
+const observer = new IntersectionObserver(entries => {
+  entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });
+}, { threshold: 0.08 });
+document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+function formatDate(str) {
+  const d = new Date(str);
+  return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short' }).replace(' ', ' — ');
+}
+
+function renderBlog(data) {
+  const container = document.getElementById('blog-container');
+  if (!data || data.length === 0) {
+    container.innerHTML = '<p style="color:var(--muted);font-family:var(--mono);font-size:0.8rem;">No posts yet.</p>';
+    return;
+  }
+
+  const sorted = [...data].sort((a, b) => new Date(b.date) - new Date(a.date));
+
+  container.innerHTML = `<div class="blog-list">` + sorted.map(post => {
+    const tags = (post.tags || []).map(t => `<span class="blog-tag">${t}</span>`).join(' ');
+    return `<a href="blog/post.html?file=${encodeURIComponent(post.filename)}" class="blog-item">
+      <span class="blog-date">${formatDate(post.date)}</span>
+      <span>
+        <span class="blog-title">${post.title}</span>
+        <p class="blog-desc">${post.description}</p>
+      </span>
+      <span class="blog-tags-cell">${tags}</span>
+    </a>`;
+  }).join('') + `</div>`;
+}
+
+const FALLBACK = [
+  { title: '0x01: 2026_Mission_Brief', date: '2026-01-01', description: 'Defining the mission objectives for 2026.', filename: '2026.md', tags: ['life', '2026'] },
+  { title: '0x00: Entry Point', date: '2025-12-25', description: 'An introduction to my background in offensive security.', filename: 'welcome.md', tags: ['life'] }
+];
+
+fetch('data/blog.json').then(r => r.json()).then(renderBlog).catch(() => renderBlog(FALLBACK));
+
+const navToggle = document.getElementById('nav-toggle');
+const navLinks = document.querySelector('.nav-links');
+if (navToggle && navLinks) {
+  navToggle.addEventListener('click', () => { navToggle.classList.toggle('open'); navLinks.classList.toggle('open'); });
+  navLinks.querySelectorAll('a').forEach(a => a.addEventListener('click', () => { navToggle.classList.remove('open'); navLinks.classList.remove('open'); }));
+}
+</script>
+</body>
+</html>

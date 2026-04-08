@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Projects — 1kb2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&family=Figtree:wght@300;400;500&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="css/main.css"/>
+</head>
+<body>
+
+<nav>
+  <a href="index.html" class="nav-logo">1<span>k</span>b2</a>
+  <ul class="nav-links">
+    <li><a href="about.html">about</a></li>
+    <li><a href="blog.html">blog</a></li>
+    <li><a href="certs.html">certs</a></li>
+    <li><a href="projects.html">projects</a></li>
+    <li><a href="fpv.html">fpv</a></li>
+    <li><a href="contact.html">contact</a></li>
+  </ul>
+  <button class="nav-hamburger" id="nav-toggle" aria-label="Menu"><span></span><span></span><span></span></button>
+</nav>
+
+<div class="page-hero">
+  <div class="page-hero-bg">
+    <div class="page-hero-grid"></div>
+    <div class="page-hero-glow"></div>
+  </div>
+  <div class="page-eyebrow">04 — Projects</div>
+  <h1>Things I've <em>built.</em></h1>
+  <p>Tools, scripts, and utilities — built to solve real problems or learn something new.</p>
+</div>
+
+<section id="projects-section" style="border-top: 1px solid var(--border); padding: 5rem 3rem;">
+  <div class="section-header reveal">
+    <span class="section-num">—</span>
+    <h2 class="section-title">Open Source</h2>
+  </div>
+  <div id="projects-grid" class="projects-grid reveal">
+    <div class="loading">Loading</div>
+  </div>
+</section>
+
+<section id="notes-section" style="border-top: 1px solid var(--border); padding: 5rem 3rem;">
+  <div class="section-header reveal">
+    <span class="section-num">—</span>
+    <h2 class="section-title">Study Notes</h2>
+  </div>
+  <p style="color: var(--muted2); margin-bottom: 2rem;" class="reveal">Public notes and study resources from certs and courses.</p>
+  <div id="notes-list" class="notes-list reveal">
+    <div class="loading">Loading</div>
+  </div>
+</section>
+
+<footer>
+  <span>1kb2.xyz</span>
+  <span>bits, signals &amp; propellers</span>
+</footer>
+
+<script>
+const observer = new IntersectionObserver(entries => {
+  entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });
+}, { threshold: 0.08 });
+document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+function renderProjects(data) {
+  const grid = document.getElementById('projects-grid');
+  if (!data || data.length === 0) {
+    grid.innerHTML = '<p style="color:var(--muted);padding:2rem;font-family:var(--mono);font-size:0.8rem;">No projects yet.</p>';
+    return;
+  }
+  grid.innerHTML = data.map(p => `
+    <a href="${p.github || '#'}" target="_blank" rel="noopener" class="project-card">
+      <span class="project-tag">Tool</span>
+      <div class="project-name">${p.name}</div>
+      <p class="project-desc">${p.description.replace(/<br>/g, ' ')}</p>
+      <div class="project-footer">
+        <span class="project-tech">${p.stack}</span>
+        <span class="project-arrow">↗</span>
+      </div>
+    </a>
+  `).join('');
+}
+
+function renderNotes(data) {
+  const list = document.getElementById('notes-list');
+  if (!data || data.length === 0) {
+    list.innerHTML = '<p style="color:var(--muted);font-family:var(--mono);font-size:0.8rem;">No notes yet.</p>';
+    return;
+  }
+  list.innerHTML = data.map(n => `
+    <a href="${n.target}" target="_blank" rel="noopener" class="note-card">
+      <div>
+        <div class="note-title">${n.title}</div>
+        <div class="note-date" style="margin-top:0.25rem">${n.date}</div>
+      </div>
+      <span class="note-arrow">↗</span>
+    </a>
+  `).join('');
+}
+
+Promise.all([
+  fetch('data/projects.json').then(r => r.json()).catch(() => []),
+  fetch('data/notes.json').then(r => r.json()).catch(() => [])
+]).then(([projects, notes]) => {
+  renderProjects(projects);
+  renderNotes(notes);
+});
+
+const navToggle = document.getElementById('nav-toggle');
+const navLinks = document.querySelector('.nav-links');
+if (navToggle && navLinks) {
+  navToggle.addEventListener('click', () => { navToggle.classList.toggle('open'); navLinks.classList.toggle('open'); });
+  navLinks.querySelectorAll('a').forEach(a => a.addEventListener('click', () => { navToggle.classList.remove('open'); navLinks.classList.remove('open'); }));
+}
+</script>
+</body>
+</html>

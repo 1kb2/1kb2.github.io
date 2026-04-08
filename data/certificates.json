@@ -1,0 +1,30 @@
+[
+  
+  {
+    "id": "cert_003",
+    "name": "HTB Certified Penetration Testing Specialist",
+    "issuer": "HackTheBox",
+    "description": "Validates the advanced skills necessary to conduct full-scope penetration engagements, exploit Active Directory and web vulnerabilities, and produce commercial-grade assessment reports.",
+    "badge_image": "images/CPTS.png",
+    "status": "planned",
+    "exam_date": "-"
+  },
+  {
+    "id": "cert_002",
+    "name": "HTB Certified Junior Cybersecurity Associate",
+    "issuer": "HackTheBox",
+    "date_earned": "2026-03-30T09:00:00",
+    "no_expiry": true,
+    "description": "Validates the foundational skills necessary to identify and exploit common vulnerabilities, perform penetration testing activities, and conduct SIEM-assisted security monitoring and intrusion detection.",
+    "badge_image": "images/CJCA.png"
+  },
+  {
+    "id": "cert_001",
+    "name": "CompTIA Security+",
+    "issuer": "CompTIA",
+    "date_earned": "2025-12-10T09:00:00",
+    "expiry_date": "2028-12-10T09:00:00",
+    "description": "Validates the foundational skills necessary to assess threats, secure networks and devices, and manage risk, compliance, and incident response.",
+    "badge_image": "images/securityplus.png"
+  }
+]
