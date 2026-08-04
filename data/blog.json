@@ -1,0 +1,16 @@
+[
+  {
+    "title": "0x01: _One_Loud_Covert_Channel",
+    "date": "2026-05-20",
+    "description": "Exploring steganography through a covert channel built on Spotify playlist track ordering.",
+    "filename": "1_One_Loud_Covert_Channel.md",
+    "tags": ["research"]
+  },
+  {
+    "title": "0x00: _Entry_Point",
+    "date": "2025-12-25",
+    "description": "Start here.",
+    "filename": "0_welcome.md",
+    "tags": ["life"]
+  }
+]
