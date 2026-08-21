@@ -1,0 +1,254 @@
+/* ---- tokens ---------------------------------------------------------- */
+:root {
+  --bg:      #000;
+  --fg:      #e6e6e6;
+  --dim:     #8a8a8a;
+  --line:    #2a2a2a;
+  --accent:  #fff;
+  --mono:    "Fira Code", ui-monospace, Menlo, Consolas, monospace;
+  --measure: 68ch;
+  --gap:     1.5rem;
+}
+
+/* ---- base ------------------------------------------------------------ */
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  margin: 0 auto;
+  padding: var(--gap);
+  max-width: var(--measure);
+  background: var(--bg);
+  color: var(--fg);
+  font: 1rem/1.7 var(--mono);
+}
+
+a       { color: var(--accent); }
+a:hover { background: var(--accent); color: var(--bg); text-decoration: none; }
+
+h1, h2, h3 { line-height: 1.25; margin: 2rem 0 .5rem; }
+h1 { font-size: 1.5rem; }
+h2 { font-size: 1.2rem; }
+h3 { font-size: 1rem; color: var(--dim); }
+
+hr { border: 0; border-top: 1px solid var(--line); margin: var(--gap) 0; }
+
+img { max-width: 100%; height: auto; display: block; }
+
+pre {
+  background: #0d0d0d;
+  border: 1px solid var(--line);
+  padding: 1rem;
+  overflow-x: auto;
+}
+code { font-family: var(--mono); font-size: .9em; }
+pre code { font-size: .85em; }
+
+blockquote {
+  margin: 1rem 0;
+  padding-left: 1rem;
+  border-left: 2px solid var(--line);
+  color: var(--dim);
+}
+
+/* ---- nav / footer ---------------------------------------------------- */
+.nav, .footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  padding-bottom: .75rem;
+  border-bottom: 1px solid var(--line);
+}
+.footer {
+  justify-content: center;
+  margin-top: 3rem;
+  padding: .75rem 0 0;
+  border-bottom: 0;
+  border-top: 1px solid var(--line);
+  color: var(--dim);
+}
+.nav a, .footer a { text-decoration: none; }
+.nav a::before { content: "~/"; color: var(--dim); }
+
+/* ---- post list ------------------------------------------------------- */
+.posts { list-style: none; margin: 0; padding: 0; }
+.posts li { display: flex; gap: 1rem; padding: .35rem 0; }
+.posts time { color: var(--dim); flex: none; }
+
+.post-meta { color: var(--dim); font-size: .9rem; }
+
+/* ---- loader ---------------------------------------------------------- */
+/* Hidden by default. Only the inline `js` class on <html> turns it on, so
+   a visitor with scripts blocked never meets a black overlay they can't
+   dismiss. */
+.loader { display: none; }
+
+.js .loader {
+  display: flex;
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+  transition: opacity .4s;
+}
+
+.loader__bars { display: flex; gap: 4px; }
+
+.loader__bars i {
+  width: 10px;
+  height: 40px;
+  background: var(--accent);
+  animation: fade 1s infinite;
+}
+.loader__bars i:nth-child(1) { animation-delay: 0s;   opacity: 1;   }
+.loader__bars i:nth-child(2) { animation-delay: .1s;  filter: brightness(.85); }
+.loader__bars i:nth-child(3) { animation-delay: .2s;  filter: brightness(.7);  }
+.loader__bars i:nth-child(4) { animation-delay: .3s;  filter: brightness(.55); }
+.loader__bars i:nth-child(5) { animation-delay: .4s;  filter: brightness(.4);  }
+.loader__bars i:nth-child(6) { animation-delay: .5s;  filter: brightness(.25); }
+
+@keyframes fade { 0%, 100% { opacity: 0; } 50% { opacity: 1; } }
+
+.loader.is-done { opacity: 0; pointer-events: none; }
+
+/* Respect the OS "reduce motion" setting: skip the loader entirely. */
+@media (prefers-reduced-motion: reduce) {
+  .js .loader { display: none; }
+  * { animation: none !important; transition: none !important; }
+}
+
+/* ---- timeline -------------------------------------------------------- */
+.timeline { list-style: none; margin: 2rem 0 0; padding: 0; }
+
+.tl {
+  position: relative;
+  padding: 0 0 1.75rem 1.75rem;
+  border-left: 1px solid var(--line);
+}
+.tl:last-child { border-left-color: transparent; }
+
+/* the node on the line */
+.tl::before {
+  content: "";
+  position: absolute;
+  left: -5px;
+  top: .4rem;
+  width: 9px;
+  height: 9px;
+  background: var(--accent);
+  border-radius: 50%;
+}
+/* planned entries: hollow node + dimmed */
+.tl--planned::before { background: var(--bg); border: 1px solid var(--dim); }
+.tl--planned .tl__body h2 { color: var(--dim); }
+
+.tl__date {
+  display: inline-block;
+  color: var(--dim);
+  font-size: .85rem;
+  margin-bottom: .25rem;
+}
+.tl__body h2 { margin: 0 0 .25rem; font-size: 1.05rem; }
+.tl__body p  { margin: .25rem 0 0; }
+
+/* ---- blog post body (ported from the old repo) ----------------------- */
+/* The signature palette: orange inline code, dark code blocks, dashed
+   h2 underline, italic grey blockquotes. Scoped to .markdown-body so it
+   only touches rendered post content, not the rest of the site. */
+.markdown-body { max-width: 800px; }
+
+.markdown-body h1 { font-size: 1.8rem; border-bottom: 2px solid #333; margin-top: 30px; margin-bottom: 20px; color: #fff; }
+.markdown-body h2 { font-size: 1.4rem; margin-top: 25px; margin-bottom: 15px; color: #ddd; border-bottom: 1px dashed #444; padding-bottom: 4px; }
+.markdown-body h3 { font-size: 1.1rem; color: #aaa; margin-top: 20px; }
+.markdown-body h4 { color: #aaa; margin-top: 18px; }
+
+.markdown-body ul, .markdown-body ol { margin-left: 20px; margin-bottom: 15px; color: #ccc; }
+.markdown-body li { margin-bottom: 5px; }
+
+.markdown-body blockquote {
+  border-left: 3px solid #555;
+  padding: 10px 15px;
+  color: #888;
+  margin: 20px 0;
+  font-style: italic;
+  background: #050505;
+}
+
+/* inline code: the orange the repo used */
+.markdown-body code {
+  background: #222;
+  padding: 2px 5px;
+  border-radius: 3px;
+  font-family: "Fira Code", var(--mono);
+  font-size: 0.9em;
+  color: #ffaa00;
+}
+/* fenced blocks: dark box, plain grey text (no per-token highlighting,
+   same as the repo — marked emitted no highlight classes) */
+.markdown-body pre {
+  background: #111;
+  padding: 15px;
+  border: 1px solid #333;
+  overflow-x: auto;
+  margin-bottom: 20px;
+}
+.markdown-body pre code { background: transparent; padding: 0; color: #ccc; border-radius: 0; }
+
+.markdown-body img { max-width: 100%; height: auto; display: block; margin: 20px 0; border: 1px solid #222; }
+
+.markdown-body table { display: block; overflow-x: auto; white-space: nowrap; font-size: 0.9rem; border-collapse: collapse; margin: 20px 0; }
+.markdown-body th { border-bottom: 1px solid #fff; text-transform: uppercase; text-align: left; padding: 6px 10px; }
+.markdown-body td { border-bottom: 1px dashed #333; padding: 6px 10px; }
+
+/* blue links, like the old site (which used the browser default) */
+.markdown-body a { color: #5b9dff; }
+.markdown-body a:visited { color: #a98bff; }
+.markdown-body a:hover { background: #5b9dff; color: #000; text-decoration: none; }
+
+/* ---- spinning om ----------------------------------------------------- */
+/* Fixed at bottom-centre of the viewport, purely decorative. `perspective`
+   on the wrapper gives the flat glyph real 3D depth as the inner span
+   rotates on its Y axis. */
+/* fixed block at the bottom: the om, then the copyright under it */
+.bottom-fixed {
+  position: fixed;
+  left: 50%;
+  bottom: 1.25rem;
+  transform: translateX(-50%);
+  z-index: 5;
+  width: 100%;
+  max-width: var(--measure);
+  padding: 0 var(--gap);
+  text-align: center;
+  pointer-events: none;
+}
+.om { perspective: 500px; }
+.om span {
+  display: inline-block;
+  font-family: "Noto Sans Devanagari", var(--mono);
+  font-size: 3rem;
+  line-height: 1;
+  color: var(--fg);
+  text-shadow: 0 0 16px rgba(255, 255, 255, .35);
+  animation: om-spin 5s linear infinite;
+}
+@keyframes om-spin {
+  from { transform: rotateY(0deg); }
+  to   { transform: rotateY(360deg); }
+}
+/* reduce-motion: keep the symbol, drop the spin (the global rule below
+   already halts it, this just makes the intent explicit) */
+@media (prefers-reduced-motion: reduce) {
+  .om span { animation: none; }
+}
+
+/* ---- copyright ------------------------------------------------------- */
+.copyright {
+  margin: .6rem 0 0;   /* sits just under the om */
+  text-align: center;
+  font-size: .8rem;
+  color: var(--dim);
+}
+
+.copyright-sub { display: inline-block; margin-top: .15rem; font-size: .9em; opacity: .75; }
