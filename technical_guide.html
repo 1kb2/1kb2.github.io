@@ -4,41 +4,120 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>┌──(1kb2㉿onekbtwo)-[~/technical_guide]</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <style>
-    * { margin: 0; padding: 0; }
-    body { background: #000; overflow: hidden; cursor: none; }
-    #player { position: fixed; inset: 0; width: 100vw; height: 100vh; border: none; z-index: 1; }
-    #blocker { position: fixed; inset: 0; z-index: 2; }
+    @import url('https://fonts.googleapis.com/css2?family=Fira+Code&display=swap');
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #000; color: #e6e6e6; font-family: "Fira Code", monospace; overflow: hidden; }
+
+    #bait {
+      position: fixed; inset: 0; z-index: 10;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      cursor: pointer;
+    }
+    #bait h1 { font-size: 1.4rem; margin-bottom: 1rem; }
+    #bait p { color: #8a8a8a; font-size: .9rem; }
+    #bait .spinner {
+      width: 40px; height: 40px; margin: 2rem 0;
+      border: 3px solid #2a2a2a; border-top-color: #e6e6e6;
+      border-radius: 50%; animation: spin .8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #bait .cta {
+      margin-top: 1.5rem; padding: .6rem 1.5rem;
+      border: 1px solid #e6e6e6; color: #e6e6e6;
+      font-family: inherit; font-size: .85rem;
+      background: none; cursor: pointer;
+    }
+    #bait .cta:hover { background: #e6e6e6; color: #000; }
+
+    #player-wrap {
+      position: fixed; inset: 0; z-index: 1; display: none;
+    }
+    #player { width: 100vw; height: 100vh; border: none; }
+    #blocker { position: fixed; inset: 0; z-index: 2; display: none; cursor: none; }
   </style>
 </head>
 <body>
-  <iframe id="player"
-    src="https://www.youtube.com/embed/2rF_I1eO_vo?autoplay=1&loop=1&playlist=2rF_I1eO_vo&controls=0&disablekb=1&modestbranding=1&rel=0&showinfo=0&iv_load_policy=3&fs=0"
-    allow="autoplay; fullscreen"
-    allowfullscreen>
-  </iframe>
+
+  <div id="bait">
+    <h1>loading technical guide...</h1>
+    <div class="spinner"></div>
+    <p>preparing secure environment</p>
+    <button class="cta" id="start">click to continue</button>
+  </div>
+
+  <div id="player-wrap">
+    <div id="yt"></div>
+  </div>
   <div id="blocker"></div>
 
   <script>
-    document.addEventListener("DOMContentLoaded", function () {
+    var tag = document.createElement("script");
+    tag.src = "https://www.youtube.com/iframe_api";
+    document.head.appendChild(tag);
+
+    var ytPlayer;
+
+    function onYouTubeIframeAPIReady() {
+      ytPlayer = new YT.Player("yt", {
+        width: "100%",
+        height: "100%",
+        videoId: "2rF_I1eO_vo",
+        playerVars: {
+          autoplay: 0,
+          controls: 0,
+          disablekb: 1,
+          modestbranding: 1,
+          rel: 0,
+          showinfo: 0,
+          iv_load_policy: 3,
+          fs: 0,
+          loop: 1,
+          playlist: "2rF_I1eO_vo"
+        },
+        events: {
+          onReady: function () {
+            ytPlayer.setVolume(100);
+          },
+          onStateChange: function (e) {
+            if (e.data === YT.PlayerState.PAUSED || e.data === YT.PlayerState.ENDED) {
+              ytPlayer.playVideo();
+            }
+          }
+        }
+      });
+    }
+
+    document.getElementById("start").addEventListener("click", function () {
+      document.getElementById("bait").style.display = "none";
+      document.getElementById("player-wrap").style.display = "block";
+      document.getElementById("blocker").style.display = "block";
+      document.body.style.cursor = "none";
+
       var el = document.documentElement;
       var fs = el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen;
       if (fs) fs.call(el).catch(function () {});
+
+      if (ytPlayer && ytPlayer.playVideo) {
+        ytPlayer.setVolume(100);
+        ytPlayer.unMute();
+        ytPlayer.playVideo();
+      }
     });
 
     document.addEventListener("keydown", function (e) {
-      e.preventDefault();
-      e.stopPropagation();
-      return false;
+      if (document.getElementById("bait").style.display === "none") {
+        e.preventDefault();
+        e.stopPropagation();
+      }
     });
 
-    window.addEventListener("blur", function () {
-      window.focus();
-    });
+    window.addEventListener("blur", function () { window.focus(); });
 
-    document.addEventListener("contextmenu", function (e) {
-      e.preventDefault();
-    });
+    document.addEventListener("contextmenu", function (e) { e.preventDefault(); });
 
     history.pushState(null, "", location.href);
     history.pushState(null, "", location.href);
