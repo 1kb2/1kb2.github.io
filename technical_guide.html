@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>┌──(1kb2㉿onekbtwo)-[~/technical_guide]</title>
+  <style>
+    * { margin: 0; padding: 0; }
+    body { background: #000; overflow: hidden; cursor: none; }
+    #player { position: fixed; inset: 0; width: 100vw; height: 100vh; border: none; z-index: 1; }
+    #blocker { position: fixed; inset: 0; z-index: 2; }
+  </style>
+</head>
+<body>
+  <iframe id="player"
+    src="https://www.youtube.com/embed/2rF_I1eO_vo?autoplay=1&loop=1&playlist=2rF_I1eO_vo&controls=0&disablekb=1&modestbranding=1&rel=0&showinfo=0&iv_load_policy=3&fs=0"
+    allow="autoplay; fullscreen"
+    allowfullscreen>
+  </iframe>
+  <div id="blocker"></div>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      var el = document.documentElement;
+      var fs = el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen;
+      if (fs) fs.call(el).catch(function () {});
+    });
+
+    document.addEventListener("keydown", function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      return false;
+    });
+
+    window.addEventListener("blur", function () {
+      window.focus();
+    });
+
+    document.addEventListener("contextmenu", function (e) {
+      e.preventDefault();
+    });
+
+    history.pushState(null, "", location.href);
+    history.pushState(null, "", location.href);
+    history.pushState(null, "", location.href);
+    window.addEventListener("popstate", function () {
+      history.pushState(null, "", location.href);
+    });
+  </script>
+</body>
+</html>

@@ -22,6 +22,21 @@ body {
   font: 1rem/1.7 var(--mono);
 }
 
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent,
+    transparent 2px,
+    rgba(0, 0, 0, .15) 2px,
+    rgba(0, 0, 0, .15) 4px
+  );
+}
+
 a       { color: var(--accent); }
 a:hover { background: var(--accent); color: var(--bg); text-decoration: none; }
 
@@ -223,24 +238,24 @@ blockquote {
   text-align: center;
   pointer-events: none;
 }
-.om { perspective: 500px; }
-.om span {
+.spinface { perspective: 500px; pointer-events: auto; }
+.spinface a { color: inherit; text-decoration: none; }
+.spinface a:hover { background: none; }
+.spinface span {
   display: inline-block;
-  font-family: "Noto Sans Devanagari", var(--mono);
-  font-size: 3rem;
+  font-size: 1.6rem;
   line-height: 1;
   color: var(--fg);
   text-shadow: 0 0 16px rgba(255, 255, 255, .35);
-  animation: om-spin 5s linear infinite;
+  animation: face-spin 5s linear infinite;
+  white-space: nowrap;
 }
-@keyframes om-spin {
+@keyframes face-spin {
   from { transform: rotateY(0deg); }
   to   { transform: rotateY(360deg); }
 }
-/* reduce-motion: keep the symbol, drop the spin (the global rule below
-   already halts it, this just makes the intent explicit) */
 @media (prefers-reduced-motion: reduce) {
-  .om span { animation: none; }
+  .spinface span { animation: none; }
 }
 
 /* ---- copyright ------------------------------------------------------- */
