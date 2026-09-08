@@ -107,7 +107,13 @@
         ytPlayer.playVideo();
       }
     });
-
+    document.addEventListener("fullscreenchange", function () {
+      if (!document.fullscreenElement && document.getElementById("bait").style.display === "none") {
+        var el = document.documentElement;
+        var fs = el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen;
+        if (fs) fs.call(el).catch(function () {});
+      }
+    });
     document.addEventListener("keydown", function (e) {
       if (document.getElementById("bait").style.display === "none") {
         e.preventDefault();
