@@ -13,13 +13,81 @@
 /* ---- base ------------------------------------------------------------ */
 *, *::before, *::after { box-sizing: border-box; }
 
+/* Page ground lives on <html> so the Graf characters (the walking dog and the
+   head pop-up, z-index -1) sit above it but below the body's text. */
+html { background: var(--bg); }
+
 body {
   margin: 0 auto;
   padding: var(--gap);
   max-width: var(--measure);
-  background: var(--bg);
+  background: transparent;
   color: var(--fg);
   font: 1rem/1.7 var(--mono);
+}
+
+/* Graf pops his head up in the middle only once he's completely off-screen
+   (never while a sliver of him is still walking). He rises from the bottom edge
+   and glances left then right. His neck sits at ~33.5% of the crop, not the
+   centre, so both the pivot and the on-screen centring use that point — his body
+   stays put and centred while only the head swings. */
+body::after {
+  content: "";
+  position: fixed;
+  z-index: -1;
+  left: 50%;
+  bottom: 0;
+  width: 112px;
+  aspect-ratio: 618 / 821;   /* graf-head crop */
+  background: url(images/brand/graf-head.png) center bottom / contain no-repeat;
+  pointer-events: none;
+  transform-origin: 33.5% 50%;                    /* pivot the turn at his neck */
+  transform: translate(-33.5%, 120%) scaleX(1);   /* tucked below, neck on centre */
+  animation: graf-peek 36s ease-in-out infinite;
+}
+/* The scaleX passes through 0, so a look reads as a head-turn, not a mirror-snap.
+   Head is up only within 34-46% / 80-92% — both safely inside his off-screen
+   windows (25-50% / 75-100%). */
+@keyframes graf-peek {
+  0%, 30%  { transform: translate(-33.5%, 120%) scaleX(1);  }  /* down while he walks out right */
+  34%      { transform: translate(-33.5%, 0%)   scaleX(1);  }  /* up, facing right */
+  38%      { transform: translate(-33.5%, 0%)   scaleX(-1); }  /* look left */
+  40%      { transform: translate(-33.5%, 0%)   scaleX(-1); }
+  44%      { transform: translate(-33.5%, 0%)   scaleX(1);  }  /* look right */
+  46%      { transform: translate(-33.5%, 0%)   scaleX(1);  }
+  48%, 76% { transform: translate(-33.5%, 120%) scaleX(1);  }  /* down while he walks out left */
+  80%      { transform: translate(-33.5%, 0%)   scaleX(1);  }  /* up again */
+  84%      { transform: translate(-33.5%, 0%)   scaleX(-1); }  /* look left */
+  86%      { transform: translate(-33.5%, 0%)   scaleX(-1); }
+  90%      { transform: translate(-33.5%, 0%)   scaleX(1);  }  /* look right */
+  92%      { transform: translate(-33.5%, 0%)   scaleX(1);  }
+  100%     { transform: translate(-33.5%, 120%) scaleX(1);  }  /* down, loop */
+}
+
+/* Graf walks the full width and continues clean off each edge, reaching fully
+   off-screen by 25% / 75% — the head only pops up after that. The scaleX flip
+   that turns him around happens while he's hidden (33% / 83%). Behind the text
+   (z-index -1) so pages stay readable; the looping WebP animates his legs. */
+html::after {
+  content: "";
+  position: fixed;
+  z-index: -1;
+  left: 0;
+  bottom: 0;
+  width: 82px;
+  height: 64px;
+  background: url(images/brand/graf-walk.webp) center bottom / contain no-repeat;
+  pointer-events: none;
+  animation: graf-walk 36s linear infinite;
+}
+@keyframes graf-walk {
+  0%   { transform: translateX(-90px) scaleX(1);  }  /* off left, facing right */
+  25%  { transform: translateX(100vw) scaleX(1);  }  /* crossed right, fully off-screen */
+  33%  { transform: translateX(100vw) scaleX(-1); }  /* flip while hidden */
+  50%  { transform: translateX(100vw) scaleX(-1); }  /* hold off-screen (head is up) */
+  75%  { transform: translateX(-90px) scaleX(-1); }  /* crossed back left, fully off-screen */
+  83%  { transform: translateX(-90px) scaleX(1);  }  /* flip back while hidden */
+  100% { transform: translateX(-90px) scaleX(1);  }  /* hold off-screen (head is up), loop */
 }
 
 body::before {
@@ -84,6 +152,15 @@ blockquote {
 .nav a, .footer a { text-decoration: none; }
 .nav a::before { content: "~/"; color: var(--dim); }
 
+/* Graf mark: sits first in the nav and links home. It skips the "~/"
+   prefix and the hover colour-inversion — a white box behind the white
+   dog would swallow it. */
+.nav { align-items: center; }
+.nav .brand { padding: 0; line-height: 0; }
+.nav .brand::before { content: none; }
+.nav .brand:hover { background: none; }
+.nav .brand img { height: 1.5rem; width: auto; display: block; }
+
 /* ---- post list ------------------------------------------------------- */
 .posts { list-style: none; margin: 0; padding: 0; }
 .posts li { display: flex; gap: 1rem; padding: .35rem 0; }
@@ -130,6 +207,7 @@ blockquote {
 /* Respect the OS "reduce motion" setting: skip the loader entirely. */
 @media (prefers-reduced-motion: reduce) {
   .js .loader { display: none; }
+  html::after, body::after { display: none; }   /* the walking/peeking Graf is pure motion; hide it */
   * { animation: none !important; transition: none !important; }
 }
 
@@ -221,11 +299,8 @@ blockquote {
 .markdown-body a:visited { color: #a98bff; }
 .markdown-body a:hover { background: #5b9dff; color: #000; text-decoration: none; }
 
-/* ---- spinning om ----------------------------------------------------- */
-/* Fixed at bottom-centre of the viewport, purely decorative. `perspective`
-   on the wrapper gives the flat glyph real 3D depth as the inner span
-   rotates on its Y axis. */
-/* fixed block at the bottom: the om, then the copyright under it */
+/* ---- bottom bar ------------------------------------------------------ */
+/* fixed block at the bottom holding the copyright line */
 .bottom-fixed {
   position: fixed;
   left: 50%;
@@ -238,32 +313,11 @@ blockquote {
   text-align: center;
   pointer-events: none;
 }
-.spinface { perspective: 500px; pointer-events: auto; }
-.spinface a { color: inherit; text-decoration: none; }
-.spinface a:hover { background: none; }
-.spinface span {
-  display: inline-block;
-  font-size: 1.6rem;
-  line-height: 1;
-  color: var(--fg);
-  text-shadow: 0 0 16px rgba(255, 255, 255, .35);
-  animation: face-spin 5s linear infinite;
-  white-space: nowrap;
-}
-@keyframes face-spin {
-  from { transform: rotateY(0deg); }
-  to   { transform: rotateY(360deg); }
-}
-@media (prefers-reduced-motion: reduce) {
-  .spinface span { animation: none; }
-}
 
 /* ---- copyright ------------------------------------------------------- */
 .copyright {
-  margin: .6rem 0 0;   /* sits just under the om */
+  margin: 0;
   text-align: center;
   font-size: .8rem;
   color: var(--dim);
 }
-
-.copyright-sub { display: inline-block; margin-top: .15rem; font-size: .9em; opacity: .75; }
