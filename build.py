@@ -65,10 +65,10 @@ def page(title, body, up="", extra_head=""):
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:image" content="{SITE_URL}/images/brand/graf-og.png">
   <script>document.documentElement.className = "js";</script>
+  <script src="{up}js/graf.js" defer></script>
 {extra_head}</head>
-<body>
+<body data-graf="perch">
   <nav class="nav">
-    <a class="brand" href="{up}index.html" aria-label="1kb2 — home"><img src="{up}images/brand/graf-icon.svg" alt="" width="28" height="28"></a>
     <a href="{up}index.html">home</a>
     <a href="{up}timeline.html">timeline</a>
     <a href="{up}blog/index.html">blog</a>
