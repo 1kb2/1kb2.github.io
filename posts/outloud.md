@@ -2,14 +2,13 @@
 title: "OutLoud: One Loud Covert Channel"
 date: 2026-05-20
 slug: outloud
+category: research
+tags: steganography, covert-channel, spotify, poc
+keywords: playlist steganography, track ordering, data exfiltration, hidden messages, data hiding, spotify graphql api, music:song meta tags, base-n encoding
 description: Exploring steganography through a covert channel built on Spotify playlist track ordering.
 ---
 
 # OutLoud
-
-Exploring steganography through a covert channel built on Spotify playlist track ordering.
-
----
 
 ## 1.0 Abstract
 
@@ -120,7 +119,7 @@ Below is an example playlist with `SYNC_LENGTH = 12`, and the resulting codebook
 
 ![Playlist sync header example](images/OutLoudFigure1.png)
 <br>
-*Figure 1: Playlist viewed in Spotify — first 12 tracks form the sync header, subsequent tracks encode the message.*
+*Figure 1: Playlist viewed in Spotify - first 12 tracks form the sync header, subsequent tracks encode the message.*
 
 
 ![](images/OutLoudFigure2.png)
@@ -131,7 +130,7 @@ Below is an example playlist with `SYNC_LENGTH = 12`, and the resulting codebook
 
 The encoding base is determined directly by the `SYNC_LENGTH` , the number of tracks in the sync header. With `SYNC_LENGTH = 12`, Outloud operates in base-12 by default.
 
-The number of tracks required to represent a single ASCII character (values 0–127) is calculated as:
+The number of tracks required to represent a single ASCII character (values 0-127) is calculated as:
 
 ```
 
@@ -202,10 +201,10 @@ See _Figure 1_ above.
 
 **Limitations:**
 
-- **ASCII only:** the current implementation supports standard ASCII (0–127).  Extended character sets such as UTF-8 would require either a larger base or  more tracks per character.
+- **ASCII only:** the current implementation supports standard ASCII (0-127).  Extended character sets such as UTF-8 would require either a larger base or  more tracks per character.
 - **Playlist size cap:** Spotify limits playlists to 10,000 tracks [12], giving  a theoretical maximum message length of ~4,994 characters at base-12.
 
-> Note: In the current PoC, all sync header tracks are sourced from a single album (Aphex Twin — Selected Ambient Works 85-92) for simplicity. In an operational deployment, tracks would be sourced from multiple artists and genres to better  resemble a genuine user-curated playlist.
+> Note: In the current PoC, all sync header tracks are sourced from a single album (Aphex Twin - Selected Ambient Works 85-92) for simplicity. In an operational deployment, tracks would be sourced from multiple artists and genres to better  resemble a genuine user-curated playlist.
 
 ### 3.3 SYNC_LENGTH as shared secret
 
@@ -329,11 +328,11 @@ To determine whether these delays are a technical necessity or purely an evasion
 
 | Test | Operation | Requests | Successful | Failed | Interval  | Total time |
 |------|-----------|----------|------------|--------|-----------|------------|
-| 1    | Add       | 200      | 200        | 0      | 0.5–1.0s  | 220.5s     |
-| 1    | Remove    | 189      | 189        | 0      | 0.5–1.0s  | 215.6s     |
-| 2    | Add       | 1000     | 1000       | 0      | 0.3–0.7s  | ~900s      |
-| 2    | Remove    | 1000     | 1000       | 0      | 0.3–0.7s  | 870.6s     |
-| 3    | Add       | 5000     | 4235       | 1*     | 0.3–0.5s  | ~1690s     |
+| 1    | Add       | 200      | 200        | 0      | 0.5-1.0s  | 220.5s     |
+| 1    | Remove    | 189      | 189        | 0      | 0.5-1.0s  | 215.6s     |
+| 2    | Add       | 1000     | 1000       | 0      | 0.3-0.7s  | ~900s      |
+| 2    | Remove    | 1000     | 1000       | 0      | 0.3-0.7s  | 870.6s     |
+| 3    | Add       | 5000     | 4235       | 1*     | 0.3-0.5s  | ~1690s     |
 
 > At request 4,236 of 5,000, the API became unresponsive, the connection hung indefinitely at the TLS handshake without returning any HTTP response, including no 429 (Too Many Requests).
 
@@ -352,9 +351,9 @@ This has two implications for Outloud's operational viability:
 
 | Mode                  | Interval    | Throughput       |
 |-----------------------|-------------|------------------|
-| Normal (evasion)      | 3–8s        | ~5.5 chars/min   |
-| Fast (test 1)         | 0.5–1.0s    | ~27 chars/min    |
-| Aggressive (test 2)   | 0.3–0.7s    | ~33 chars/min    |
+| Normal (evasion)      | 3-8s        | ~5.5 chars/min   |
+| Fast (test 1)         | 0.5-1.0s    | ~27 chars/min    |
+| Aggressive (test 2)   | 0.3-0.7s    | ~33 chars/min    |
 
 > At normal evasion intervals, a 100-character message takes approximately 18 minutes to transmit, slow by conventional standards, but consistent with the channel's design goal of stealth over speed.
 
@@ -373,7 +372,7 @@ The key findings of this research are:
 
 - A receiver can decode messages from a public Spotify playlist with zero authentication, using only the HTML meta tags Spotify exposes for social sharing.
 - Spotify's internal GraphQL API accepts automated playlist modifications at scale, with no explicit rate limiting observed across 6,624 successful requests. A silent IP-level block was triggered only after ~4,235 consecutive requests at aggressive intervals.
-- The shared secret between sender and receiver is a single integer, the sync length — making the channel trivial to establish and difficult to detect without prior knowledge of its existence.
+- The shared secret between sender and receiver is a single integer, the sync length - making the channel trivial to establish and difficult to detect without prior knowledge of its existence.
 
 Outloud is not unique to Spotify. Any platform that exposes ordered, publicly readable data and allows authenticated modifications is a potential candidate for a similar channel. The methodology described in this paper is platform-agnostic, only the implementation details change.
 
@@ -382,24 +381,25 @@ The tool and all supporting code are available at:
 
 ## What's Next
 
-- **Weaponizing Outloud** — integrating the channel into an offensive 
+- **Weaponizing Outloud** - integrating the channel into an offensive 
   toolchain
-- **Detecting Outloud** — blue team analysis, SIEM rules, and detection 
+- **Detecting Outloud** - blue team analysis, SIEM rules, and detection 
   engineering
-- **Beyond Spotify** — applying the methodology to other platforms
+- **Beyond Spotify** - applying the methodology to other platforms
 
 Follow this series at [1kb2.xyz](https://1kb2.xyz) 
 
 ⭐ Drop a star on the [repo](https://github.com/1kb2/outloud) if you enjoyed reading this :)
+
 ---
 
 ## References
 
 [1] Taylor & Francis _Knowledge Hub Page on Covert Channels_, https://taylorandfrancis.com/knowledge/Engineering_and_technology/Computer_science/Covert_channels/
 
-[2] Wray, J. C. (1991). "An Analysis of Covert Timing Channels." _Proceedings of the IEEE Symposium on Research in Security and Privacy_, 313–323. Oakland, CA, https://www.cs.cornell.edu/people/vickyw/iFlow/papers/wra91.pdf
+[2] Wray, J. C. (1991). "An Analysis of Covert Timing Channels." _Proceedings of the IEEE Symposium on Research in Security and Privacy_, 313-323. Oakland, CA, https://www.cs.cornell.edu/people/vickyw/iFlow/papers/wra91.pdf
 
-[3] Lampson, B. W. (1973). "A Note on the Confinement Problem." _Communications of the ACM_, 16(10), 613–615, https://doi.org/10.1145/362375.362389
+[3] Lampson, B. W. (1973). "A Note on the Confinement Problem." _Communications of the ACM_, 16(10), 613-615, https://doi.org/10.1145/362375.362389
 
 [4] Spotify, "Company Info", https://newsroom.spotify.com/company-info/
 

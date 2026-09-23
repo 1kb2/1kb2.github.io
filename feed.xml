@@ -7,6 +7,13 @@
     <language>en</language>
     <atom:link href="https://1kb2.xyz/feed.xml" rel="self" type="application/rss+xml"/>
     <item>
+      <title>HTB CPTS Track: Fluffy (easy)</title>
+      <link>https://1kb2.xyz/blog/fluffy.html</link>
+      <guid isPermaLink="true">https://1kb2.xyz/blog/fluffy.html</guid>
+      <pubDate>Wed, 23 Sep 2026 00:00:00 +0000</pubDate>
+      <description>Assumed-breach HTB box: NTLM coercion, shadow credentials, and AD CS ESC16 chained to Domain Admin.</description>
+    </item>
+    <item>
       <title>OutLoud: One Loud Covert Channel</title>
       <link>https://1kb2.xyz/blog/outloud.html</link>
       <guid isPermaLink="true">https://1kb2.xyz/blog/outloud.html</guid>

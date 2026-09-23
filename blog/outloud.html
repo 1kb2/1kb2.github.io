@@ -13,14 +13,18 @@
   <link rel="icon" href="../favicon-32.png" sizes="32x32" type="image/png">
   <link rel="apple-touch-icon" href="../apple-touch-icon.png">
   <meta name="theme-color" content="#000000">
-  <meta property="og:type" content="website">
-  <meta property="og:title" content="1kb2">
-  <meta property="og:description" content="Cybersecurity portfolio. Practical learning, security research, hands-on technical projects.">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="OutLoud: One Loud Covert Channel">
+  <meta property="og:description" content="Exploring steganography through a covert channel built on Spotify playlist track ordering.">
+  <meta property="og:url" content="https://1kb2.xyz/blog/outloud.html">
   <meta property="og:image" content="https://1kb2.xyz/images/brand/graf-og.png">
   <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="OutLoud: One Loud Covert Channel">
+  <meta name="twitter:description" content="Exploring steganography through a covert channel built on Spotify playlist track ordering.">
   <meta name="twitter:image" content="https://1kb2.xyz/images/brand/graf-og.png">
   <script>document.documentElement.className = "js";</script>
   <script src="../js/graf.js" defer></script>
+  <script src="../js/post.js" defer></script>
 </head>
 <body data-graf="perch">
   <nav class="nav">
@@ -32,11 +36,49 @@
 
   <main class="markdown-body">
     <h1>OutLoud: One Loud Covert Channel</h1>
-    <p class="post-meta">2026-05-20</p>
-<p>Exploring steganography through a covert channel built on Spotify playlist track ordering.</p>
-<hr />
-<h2 id="10-abstract">1.0 Abstract</h2>
-<h3 id="11-overview">1.1 Overview</h3>
+    <p class="post-meta">2026-05-20 &middot; <a class="post-cat" href="index.html#cat-research">research</a></p>
+    <p class="post-tags"><a class="tag" href="tag/steganography.html" data-tag="steganography">#steganography</a><a class="tag" href="tag/covert-channel.html" data-tag="covert-channel">#covert-channel</a><a class="tag" href="tag/spotify.html" data-tag="spotify">#spotify</a><a class="tag" href="tag/poc.html" data-tag="poc">#poc</a></p>
+    <p class="post-abstract">Exploring steganography through a covert channel built on Spotify playlist track ordering.</p>
+    <details class="toc-box" open>
+      <summary>contents</summary>
+<div class="toc">
+<ul>
+<li><a href="#10-abstract">1.0 Abstract</a><ul>
+<li><a href="#11-overview">1.1 Overview</a></li>
+<li><a href="#12-what-is-a-covert-channel">1.2 What is a Covert Channel?</a></li>
+<li><a href="#13-why-spotify">1.3 Why Spotify?</a></li>
+</ul>
+</li>
+<li><a href="#20-background">2.0 Background</a><ul>
+<li><a href="#21-steganography-theory">2.1 Steganography theory</a></li>
+<li><a href="#22-existing-covert-channels">2.2 Existing covert channels</a></li>
+<li><a href="#23-why-social-platforms-are-interesting-targets">2.3 Why social platforms are interesting targets</a></li>
+</ul>
+</li>
+<li><a href="#30-technical-design">3.0 Technical Design</a><ul>
+<li><a href="#31-the-sync-header-concept">3.1 The Sync Header Concept</a></li>
+<li><a href="#32-base-12-encoding">3.2 Base-12 encoding</a><ul>
+<li><a href="#why-base-12">Why base-12?</a></li>
+<li><a href="#example-encoding-the-letter-w-ascii-119-in-base-12">Example: encoding the letter w (ASCII 119) in base-12:</a></li>
+</ul>
+</li>
+<li><a href="#33-sync_length-as-shared-secret">3.3 SYNC_LENGTH as shared secret</a></li>
+</ul>
+</li>
+<li><a href="#40-implementation">4.0 Implementation</a><ul>
+<li><a href="#41-receiver-zero-auth-html-meta-tag-scraping">4.1 Receiver: Zero-Auth HTML Meta Tag Scraping</a></li>
+<li><a href="#42-sender-internal-graphql-api-reverse-engineering">4.2 Sender: Internal GraphQL API Reverse Engineering</a></li>
+<li><a href="#43-human-sleep-intervals-for-evasion-and-rate-limiting">4.3 Human Sleep Intervals for Evasion and Rate Limiting</a></li>
+</ul>
+</li>
+<li><a href="#50-conclusion">5.0 Conclusion</a></li>
+<li><a href="#whats-next">What's Next</a></li>
+<li><a href="#references">References</a></li>
+</ul>
+</div>
+    </details>
+<h2 id="10-abstract">1.0 Abstract<a class="headerlink" href="#10-abstract" title="link to this section">&para;</a></h2>
+<h3 id="11-overview">1.1 Overview<a class="headerlink" href="#11-overview" title="link to this section">&para;</a></h3>
 <p>Outloud is a Proof-of-Concept (PoC) covert channel that encodes arbitrary text 
 messages into the ordering of tracks within a public Spotify playlist.</p>
 <p>By leveraging the fact that Spotify embeds all playlist track URIs in publicly 
@@ -48,28 +90,29 @@ which determines both the codebook and the encoding base.</p>
 findings, and detection considerations for this channel.</p>
 <p>Follow this and additional works at: <a href="https://1kb2.xyz">https://1kb2.xyz</a></p>
 <hr />
-<h3 id="12-what-is-a-covert-channel">1.2 What is a Covert Channel?</h3>
+<h3 id="12-what-is-a-covert-channel">1.2 What is a Covert Channel?<a class="headerlink" href="#12-what-is-a-covert-channel" title="link to this section">&para;</a></h3>
 <p><strong>Covert channels</strong> [1] enable secret data transmission through legitimate system resources or protocols, evading detection by hiding communication within normal operations. They fall into:
 * <strong>Timing channels</strong> [2], like inter-packet delays.
 * <strong>Storage channels</strong> [3], like modifying packet headers or in our case leveraging Spotify playlist track ordering.</p>
 <hr />
-<h3 id="13-why-spotify">1.3 Why Spotify?</h3>
+<h3 id="13-why-spotify">1.3 Why Spotify?<a class="headerlink" href="#13-why-spotify" title="link to this section">&para;</a></h3>
 <p>Spotify presents a uniquely attractive platform for covert channel implementation for several reasons. With over 761 million users [4], playlist activity is considered entirely normal behavior that generates no suspicion. Unlike email or messaging platforms, playlist modifications leave no obvious communication trail between two parties.</p>
 <p>More critically, Spotify exposes all playlist track URIs in publicly accessible HTML meta tags:</p>
-<pre><code class="language-html">&lt;SNIP&gt;
-&lt;meta name=&quot;music:song&quot; content=&quot;https://open.spotify.com/track/7o2AeQZzfCERsRmOM86EcB&quot;/&gt;
-&lt;meta name=&quot;music:song:track&quot; content=&quot;1&quot;/&gt;
-&lt;meta name=&quot;music:song&quot; content=&quot;https://open.spotify.com/track/4Sxv0whUHWzHK5T8uuP66S&quot;/&gt;
-&lt;meta name=&quot;music:song:track&quot; content=&quot;2&quot;/&gt;
-&lt;SNIP&gt;
-</code></pre>
+<div class="codehilite"><pre><span></span><code><span class="p">&lt;</span><span class="nt">SNIP</span><span class="p">&gt;</span>
+<span class="p">&lt;</span><span class="nt">meta</span> <span class="na">name</span><span class="o">=</span><span class="s">"music:song"</span> <span class="na">content</span><span class="o">=</span><span class="s">"https://open.spotify.com/track/7o2AeQZzfCERsRmOM86EcB"</span><span class="p">/&gt;</span>
+<span class="p">&lt;</span><span class="nt">meta</span> <span class="na">name</span><span class="o">=</span><span class="s">"music:song:track"</span> <span class="na">content</span><span class="o">=</span><span class="s">"1"</span><span class="p">/&gt;</span>
+<span class="p">&lt;</span><span class="nt">meta</span> <span class="na">name</span><span class="o">=</span><span class="s">"music:song"</span> <span class="na">content</span><span class="o">=</span><span class="s">"https://open.spotify.com/track/4Sxv0whUHWzHK5T8uuP66S"</span><span class="p">/&gt;</span>
+<span class="p">&lt;</span><span class="nt">meta</span> <span class="na">name</span><span class="o">=</span><span class="s">"music:song:track"</span> <span class="na">content</span><span class="o">=</span><span class="s">"2"</span><span class="p">/&gt;</span>
+<span class="p">&lt;</span><span class="nt">SNIP</span><span class="p">&gt;</span>
+</code></pre></div>
+
 <p>intended for search engine indexing and social media link previews. This means a receiver can decode messages using nothing more than an HTTP request to a public playlist URL, no account, no API key, no authentication of any kind, for public playlists only.</p>
 <p>Finally, Spotify's internal GraphQL API accepts write operations such as adding and removing tracks using session tokens extractable from any logged-in browser session, requiring no registered developer account or official API access.</p>
 <hr />
-<h2 id="20-background">2.0 Background</h2>
+<h2 id="20-background">2.0 Background<a class="headerlink" href="#20-background" title="link to this section">&para;</a></h2>
 <p>Steganography is the practice of concealing information within ordinary, non-secret data so that the existence of a message goes undetected [5]. </p>
 <p>While steganographic techniques have existed for centuries, the field only developed a formal theoretical foundation in the early 1990s with the rise of digital media and networked communication [5].</p>
-<h3 id="21-steganography-theory">2.1 Steganography theory</h3>
+<h3 id="21-steganography-theory">2.1 Steganography theory<a class="headerlink" href="#21-steganography-theory" title="link to this section">&para;</a></h3>
 <p>Unlike cryptography, which protects the content of a message, steganography protects the fact that communication is occurring at all. </p>
 <p>Steganography is sometimes conflated with security through obscurity, the flawed principle that a system is secure simply because its inner workings are hidden. </p>
 <p>As Bruce Schneier noted: </p>
@@ -77,7 +120,7 @@ findings, and detection considerations for this channel.</p>
 <p>"Security through obscurity is no security at all." [6]</p>
 </blockquote>
 <p>This distinction is critical for Outloud. The channel itself provides no confidentiality, if an adversary discovers the playlist and knows the sync length, they can decode any message trivially. For operational security, plaintext messages should be encrypted before encoding into the playlist. Outloud provides <em>covertness</em>, not <em>confidentiality</em>, these properties should not be conflated.</p>
-<h3 id="22-existing-covert-channels">2.2 Existing covert channels</h3>
+<h3 id="22-existing-covert-channels">2.2 Existing covert channels<a class="headerlink" href="#22-existing-covert-channels" title="link to this section">&para;</a></h3>
 <p>Covert channels are classified into two fundamental categories: storage channels, which encode information in a persistent readable medium, and timing channels, which encode information in the timing of events [2]. </p>
 <p>Implementations vary widely. Common examples include:</p>
 <p><strong>Network protocol channels</strong> leverage the structure of network protocols to hide data. During the SolarWinds compromise (attributed to APT29/SVR), attackers used DNS subdomain encoding to construct randomized subdomains for C2 communication [7]. Similarly, the Ke3chang/APT15 group's Okrum backdoor employed custom HTTP header steganography using <code>Cookie</code> and <code>Set-Cookie</code> fields for C2 [8]. </p>
@@ -86,13 +129,13 @@ findings, and detection considerations for this channel.</p>
 - Echo audio steganography embeds data into audio signals by varying the amplitude, decay rate, and offset of introduced echoes [10]. </p>
 <p><strong>Web service abuse</strong> [11] stores malicious payloads directly on legitimate platforms such as Dropbox, GitHub, or Pastebin. While these blend into normal traffic due to the legitimacy of the hosting platform, the payload itself remains detectable through content inspection.</p>
 <p>Outloud differs fundamentally from all of the above, no malicious content is stored anywhere. The message exists only in the semantic ordering of tracks within a normal music playlist, invisible to any content-based detection.</p>
-<h3 id="23-why-social-platforms-are-interesting-targets">2.3 Why social platforms are interesting targets</h3>
+<h3 id="23-why-social-platforms-are-interesting-targets">2.3 Why social platforms are interesting targets<a class="headerlink" href="#23-why-social-platforms-are-interesting-targets" title="link to this section">&para;</a></h3>
 <p>Social platforms are particularly interesting targets for covert channel implementation due to the sheer volume of traffic they generate. Connections to platforms like Spotify, Twitter, or Instagram blend seamlessly into baseline network noise, making individual requests statistically invisible to most monitoring tools unless it is excessive.</p>
 <p>Outloud specifically leverages Spotify because the encoded data is functionally benign at rest (e.g. a playlist of Aphex Twin tracks raises no suspicion to any observer, human or automated, nor does it cause any harm to the platform or its users). The data only becomes meaningful when decoded with knowledge of the sync length, meaning content inspection alone is insufficient to detect the channel.</p>
 <p>Unlike attacker-controlled C2 infrastructure, social platforms cannot be blocklisted without significant operational justification. An employee listening to music on Spotify while working is entirely expected behavior.</p>
 <hr />
-<h2 id="30-technical-design">3.0 Technical Design</h2>
-<h3 id="31-the-sync-header-concept">3.1 The Sync Header Concept</h3>
+<h2 id="30-technical-design">3.0 Technical Design<a class="headerlink" href="#30-technical-design" title="link to this section">&para;</a></h2>
+<h3 id="31-the-sync-header-concept">3.1 The Sync Header Concept<a class="headerlink" href="#31-the-sync-header-concept" title="link to this section">&para;</a></h3>
 <p>Outloud encodes messages into the ordering of tracks within a Spotify playlist. The playlist is divided into two regions:</p>
 <ul>
 <li><strong>Sync header</strong>: the first N tracks, where N is the <code>SYNC_LENGTH</code>. These tracks define the codebook dynamically, their position in the playlist determines their symbol value. Track at position 1 = symbol 0, position 2 = symbol 1, and so on.</li>
@@ -102,48 +145,44 @@ findings, and detection considerations for this channel.</p>
 <p>Below is an example playlist with <code>SYNC_LENGTH = 12</code>, and the resulting codebook  generated from its sync header:</p>
 <p><img alt="Playlist sync header example" src="../images/OutLoudFigure1.png" />
 <br>
-<em>Figure 1: Playlist viewed in Spotify — first 12 tracks form the sync header, subsequent tracks encode the message.</em></p>
+<em>Figure 1: Playlist viewed in Spotify - first 12 tracks form the sync header, subsequent tracks encode the message.</em></p>
 <p><img alt="" src="../images/OutLoudFigure2.png" />
 <br>
 <em>Figure 2: Codebook generated from sync header of playlist <code>1Ws2L2kUi8Q5m0yn5lPLqK</code> with <code>SYNC_LENGTH = 12</code></em></p>
-<h3 id="32-base-12-encoding">3.2 Base-12 encoding</h3>
-<p>The encoding base is determined directly by the <code>SYNC_LENGTH</code> , the number of tracks in the sync header. With <code>SYNC_LENGTH = 12</code>, Outloud operates in base-12 by default.</p>
-<p>The number of tracks required to represent a single ASCII character (values 0–127) is calculated as:</p>
-<pre><code>
-tracks_per_char = ⌈log_N(128)⌉
+<h3 id="32-base-12-encoding">3.2 Base-12 encoding<a class="headerlink" href="#32-base-12-encoding" title="link to this section">&para;</a></h3>
+<p>The encoding base is determined directly by the <code>SYNC_LENGTH</code>, the number of tracks in the sync header. With <code>SYNC_LENGTH = 12</code>, Outloud operates in base-12 by default.</p>
+<p>The number of tracks required to represent a single ASCII character (values 0-127) is calculated as:</p>
+<div class="codehilite"><pre><span></span><code>tracks_per_char = ⌈log_N(128)⌉
+</code></pre></div>
 
-</code></pre>
 <p>Where N is the base (equal to sync length) and 128 is the size of the ASCII  character space.</p>
-<h4 id="why-base-12">Why base-12?</h4>
+<h4 id="why-base-12">Why base-12?<a class="headerlink" href="#why-base-12" title="link to this section">&para;</a></h4>
 <p>Base-12 is the smallest base that achieves full ASCII coverage in exactly 2 tracks per character:</p>
-<pre><code>
-11² = 121 &lt; 128 ✗ needs 3 tracks per character
+<div class="codehilite"><pre><span></span><code>11² = 121 &lt; 128 ✗ needs 3 tracks per character
 12² = 144 ≥ 128 ✓ needs 2 tracks per character
+</code></pre></div>
 
-</code></pre>
 <p>This makes 12 the optimal choice, it minimizes the sync header size while keeping the encoding at 2 tracks per character.</p>
-<h4 id="example-encoding-the-letter-w-ascii-119-in-base-12"><strong>Example: encoding the letter <code>w</code> (ASCII 119) in base-12:</strong></h4>
+<h4 id="example-encoding-the-letter-w-ascii-119-in-base-12"><strong>Example: encoding the letter <code>w</code> (ASCII 119) in base-12:</strong><a class="headerlink" href="#example-encoding-the-letter-w-ascii-119-in-base-12" title="link to this section">&para;</a></h4>
 <p>Encoding:</p>
-<pre><code>
-119 ÷ 12 = 9 remainder 11
+<div class="codehilite"><pre><span></span><code>119 ÷ 12 = 9 remainder 11
 
 digits = [9, 11]
 
 symbol 9 → Ptolemy (23HiOySFOnPUXTJWnc5tAb) 
 symbol 11 → Delphium (54avYgPIdqFI59mW91E0Sf)
+</code></pre></div>
 
-</code></pre>
 <p>The letter <code>w</code> is encoded by appending Ptolemy followed by Delphium to the playlist after the sync header.</p>
 <p>Decoding:</p>
-<pre><code>
-Read track → Ptolemy → symbol 9 
+<div class="codehilite"><pre><span></span><code>Read track → Ptolemy → symbol 9 
 Read track → Delphium → symbol 11
 
 value = (9 × 12) + 11 = 119
 
 chr(119) = 'w' ✓
+</code></pre></div>
 
-</code></pre>
 <p>This is the first character of the message <code>whoami</code> currently encoded in the example playlist. 
 See <em>Figure 1</em> above.</p>
 <p><strong>Comparison across different bases:</strong></p>
@@ -204,14 +243,14 @@ See <em>Figure 1</em> above.</p>
 <p><em>*Based on Spotify's 10,000 track playlist limit, minus sync header tracks.</em> [12]</p>
 <p><strong>Limitations:</strong></p>
 <ul>
-<li><strong>ASCII only:</strong> the current implementation supports standard ASCII (0–127).  Extended character sets such as UTF-8 would require either a larger base or  more tracks per character.</li>
+<li><strong>ASCII only:</strong> the current implementation supports standard ASCII (0-127).  Extended character sets such as UTF-8 would require either a larger base or  more tracks per character.</li>
 <li><strong>Playlist size cap:</strong> Spotify limits playlists to 10,000 tracks [12], giving  a theoretical maximum message length of ~4,994 characters at base-12.</li>
 </ul>
 <blockquote>
-<p>Note: In the current PoC, all sync header tracks are sourced from a single album (Aphex Twin — Selected Ambient Works 85-92) for simplicity. In an operational deployment, tracks would be sourced from multiple artists and genres to better  resemble a genuine user-curated playlist.</p>
+<p>Note: In the current PoC, all sync header tracks are sourced from a single album (Aphex Twin - Selected Ambient Works 85-92) for simplicity. In an operational deployment, tracks would be sourced from multiple artists and genres to better  resemble a genuine user-curated playlist.</p>
 </blockquote>
-<h3 id="33-sync_length-as-shared-secret">3.3 SYNC_LENGTH as shared secret</h3>
-<p>The only value both sender and receiver must agree on in advance is the <code>SYNC_LENGTH</code> , a single integer that determines where the sync header ends and the message region begins.</p>
+<h3 id="33-sync_length-as-shared-secret">3.3 SYNC_LENGTH as shared secret<a class="headerlink" href="#33-sync_length-as-shared-secret" title="link to this section">&para;</a></h3>
+<p>The only value both sender and receiver must agree on in advance is the <code>SYNC_LENGTH</code>, a single integer that determines where the sync header ends and the message region begins.</p>
 <p>Without knowledge of the sync length, an observer cannot:</p>
 <ul>
 <li>Determine which tracks form the codebook and which encode the message</li>
@@ -222,59 +261,61 @@ See <em>Figure 1</em> above.</p>
 <p><strong>Keyspace analysis:</strong></p>
 <p>For a playlist of T total tracks, an interceptor must try every possible <code>SYNC_LENGTH</code> from 2 to T-1. Most incorrect values will either produce decoding errors, where message tracks are not found in the codebook, or nonsensical output, making manual verification necessary for each attempt.</p>
 <p>Additionally, the ordering of tracks within the sync header itself acts as a secondary key. With <code>SYNC_LENGTH = 12</code>, there are:</p>
-<pre><code>
-12! = 479,001,600 possible codebook permutations
+<div class="codehilite"><pre><span></span><code>12! = 479,001,600 possible codebook permutations
+</code></pre></div>
 
-</code></pre>
 <blockquote>
 <p>Note: Reordering the same 12 tracks in the sync header produces a completely different codebook without changing the track selection, effectively rekeying the channel by simply rearranging the playlist.</p>
 </blockquote>
 <hr />
-<h2 id="40-implementation">4.0 Implementation</h2>
-<h3 id="41-receiver-zero-auth-html-meta-tag-scraping">4.1 Receiver: Zero-Auth HTML Meta Tag Scraping</h3>
+<h2 id="40-implementation">4.0 Implementation<a class="headerlink" href="#40-implementation" title="link to this section">&para;</a></h2>
+<h3 id="41-receiver-zero-auth-html-meta-tag-scraping">4.1 Receiver: Zero-Auth HTML Meta Tag Scraping<a class="headerlink" href="#41-receiver-zero-auth-html-meta-tag-scraping" title="link to this section">&para;</a></h3>
 <p>The receiver requires no authentication whatsoever. Public Spotify playlist pages embed all track URIs in HTML meta tags using the Open Graph music protocol. A simple HTTP GET request retrieves the full track listing:</p>
-<pre><code class="language-python">html = requests.get(f&quot;https://open.spotify.com/playlist/{PLAYLIST_ID}&quot;).text
-tracks = re.findall(
-    r'music:song&quot; content=&quot;https://open.spotify.com/track/([a-zA-Z0-9]+)&quot;', 
-    html
-)
-</code></pre>
+<div class="codehilite"><pre><span></span><code><span class="n">html</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="sa">f</span><span class="s2">"https://open.spotify.com/playlist/</span><span class="si">{</span><span class="n">PLAYLIST_ID</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span><span class="o">.</span><span class="n">text</span>
+<span class="n">tracks</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span>
+    <span class="sa">r</span><span class="s1">'music:song" content="https://open.spotify.com/track/([a-zA-Z0-9]+)"'</span><span class="p">,</span> 
+    <span class="n">html</span>
+<span class="p">)</span>
+</code></pre></div>
+
 <p>This returns an ordered list of track IDs. The first <code>SYNC_LENGTH</code> tracks form the codebook, everything after is decoded using the base-N scheme described in section 3.2.</p>
 <p>The receiver can be implemented as a standalone polling loop with no dependencies beyond Python's <code>requests</code> library, no Spotify account, no API key, no session tokens.</p>
 <hr />
-<h3 id="42-sender-internal-graphql-api-reverse-engineering">4.2 Sender: Internal GraphQL API Reverse Engineering</h3>
+<h3 id="42-sender-internal-graphql-api-reverse-engineering">4.2 Sender: Internal GraphQL API Reverse Engineering<a class="headerlink" href="#42-sender-internal-graphql-api-reverse-engineering" title="link to this section">&para;</a></h3>
 <p>The sender requires a valid Spotify session to write to the playlist. Through intercepting the Spotify web player's network traffic, two undocumented GraphQL endpoints were identified at <code>api-partner.spotify.com/pathfinder/v2/query</code>:</p>
 <p><strong>Adding a track: <code>addToPlaylist</code>:</strong></p>
-<pre><code class="language-python">body = {
-    &quot;variables&quot;: {
-        &quot;playlistItemUris&quot;: [track_uri],
-        &quot;playlistUri&quot;: f&quot;spotify:playlist:{playlist_id}&quot;,
-        &quot;newPosition&quot;: {&quot;moveType&quot;: &quot;BOTTOM_OF_PLAYLIST&quot;, &quot;fromUid&quot;: None},
-    },
-    &quot;operationName&quot;: &quot;addToPlaylist&quot;,
-    &quot;extensions&quot;: {
-        &quot;persistedQuery&quot;: {
-            &quot;version&quot;: 1, 
-            &quot;sha256Hash&quot;: &quot;47b2a1234b17748d332dd0431534f22450e9ecbb3d5ddcdacbd83368636a0990&quot;
-        }
-    },
-}
-</code></pre>
+<div class="codehilite"><pre><span></span><code><span class="n">body</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">"variables"</span><span class="p">:</span> <span class="p">{</span>
+        <span class="s2">"playlistItemUris"</span><span class="p">:</span> <span class="p">[</span><span class="n">track_uri</span><span class="p">],</span>
+        <span class="s2">"playlistUri"</span><span class="p">:</span> <span class="sa">f</span><span class="s2">"spotify:playlist:</span><span class="si">{</span><span class="n">playlist_id</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span>
+        <span class="s2">"newPosition"</span><span class="p">:</span> <span class="p">{</span><span class="s2">"moveType"</span><span class="p">:</span> <span class="s2">"BOTTOM_OF_PLAYLIST"</span><span class="p">,</span> <span class="s2">"fromUid"</span><span class="p">:</span> <span class="kc">None</span><span class="p">},</span>
+    <span class="p">},</span>
+    <span class="s2">"operationName"</span><span class="p">:</span> <span class="s2">"addToPlaylist"</span><span class="p">,</span>
+    <span class="s2">"extensions"</span><span class="p">:</span> <span class="p">{</span>
+        <span class="s2">"persistedQuery"</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s2">"version"</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> 
+            <span class="s2">"sha256Hash"</span><span class="p">:</span> <span class="s2">"47b2a1234b17748d332dd0431534f22450e9ecbb3d5ddcdacbd83368636a0990"</span>
+        <span class="p">}</span>
+    <span class="p">},</span>
+<span class="p">}</span>
+</code></pre></div>
+
 <p><strong>Removing a track: <code>removeFromPlaylist</code>:</strong></p>
-<pre><code class="language-python">body = {
-    &quot;variables&quot;: {
-        &quot;playlistUri&quot;: f&quot;spotify:playlist:{playlist_id}&quot;,
-        &quot;uids&quot;: [uid],
-    },
-    &quot;operationName&quot;: &quot;removeFromPlaylist&quot;,
-    &quot;extensions&quot;: {
-        &quot;persistedQuery&quot;: {
-            &quot;version&quot;: 1, 
-            &quot;sha256Hash&quot;: &quot;47b2a1234b17748d332dd0431534f22450e9ecbb3d5ddcdacbd83368636a0990&quot;
-        }
-    },
-}
-</code></pre>
+<div class="codehilite"><pre><span></span><code><span class="n">body</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">"variables"</span><span class="p">:</span> <span class="p">{</span>
+        <span class="s2">"playlistUri"</span><span class="p">:</span> <span class="sa">f</span><span class="s2">"spotify:playlist:</span><span class="si">{</span><span class="n">playlist_id</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span>
+        <span class="s2">"uids"</span><span class="p">:</span> <span class="p">[</span><span class="n">uid</span><span class="p">],</span>
+    <span class="p">},</span>
+    <span class="s2">"operationName"</span><span class="p">:</span> <span class="s2">"removeFromPlaylist"</span><span class="p">,</span>
+    <span class="s2">"extensions"</span><span class="p">:</span> <span class="p">{</span>
+        <span class="s2">"persistedQuery"</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s2">"version"</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> 
+            <span class="s2">"sha256Hash"</span><span class="p">:</span> <span class="s2">"47b2a1234b17748d332dd0431534f22450e9ecbb3d5ddcdacbd83368636a0990"</span>
+        <span class="p">}</span>
+    <span class="p">},</span>
+<span class="p">}</span>
+</code></pre></div>
+
 <p>Both operations use the same persisted query hash and require two authentication headers:</p>
 <ul>
 <li><strong><code>client-token</code>:</strong> a session token issued to any browser visiting <code>open.spotify.com</code>.</li>
@@ -283,13 +324,15 @@ tracks = re.findall(
 <p>Both tokens were extracted directly from browser DevTools by inspecting the request headers of the Spotify web player's own API calls. No official Spotify developer account or registered application was used at any point.</p>
 <p><strong>Key finding:</strong> the <code>removeFromPlaylist</code> operation requires a per-instance <code>uid</code> rather than a track URI. Each track in a playlist has a unique <code>uid</code> assigned at insertion time, meaning the same track added twice has two different UIDs. This required a separate <code>fetchPlaylistContents</code> query to retrieve UIDs before removal.</p>
 <hr />
-<h3 id="43-human-sleep-intervals-for-evasion-and-rate-limiting">4.3 Human Sleep Intervals for Evasion and Rate Limiting</h3>
+<h3 id="43-human-sleep-intervals-for-evasion-and-rate-limiting">4.3 Human Sleep Intervals for Evasion and Rate Limiting<a class="headerlink" href="#43-human-sleep-intervals-for-evasion-and-rate-limiting" title="link to this section">&para;</a></h3>
 <p>To avoid triggering behavioral anomaly detection, the sender introduces randomized delays between each track addition:</p>
-<pre><code class="language-python">time.sleep(random.uniform(3, 8))
-</code></pre>
+<div class="codehilite"><pre><span></span><code><span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">random</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">8</span><span class="p">))</span>
+</code></pre></div>
+
 <p>This produces intervals of 3 to 8 seconds between API calls, mimicking the natural pace of a user manually adding songs to a playlist. For track removal during the <code>clear_messages</code> operation, a slightly shorter interval is used:</p>
-<pre><code class="language-python">time.sleep(random.uniform(2, 5))
-</code></pre>
+<div class="codehilite"><pre><span></span><code><span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">random</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">5</span><span class="p">))</span>
+</code></pre></div>
+
 <p>This reflects the faster pace at which users typically remove unwanted tracks compared to browsing and adding new ones.</p>
 <p><strong>Rate limiting observations:</strong></p>
 <p>To determine whether these delays are a technical necessity or purely an evasion measure, a series of rate limiting tests were conducted against Spotify's internal GraphQL API at progressively faster intervals:</p>
@@ -312,7 +355,7 @@ tracks = re.findall(
 <td>200</td>
 <td>200</td>
 <td>0</td>
-<td>0.5–1.0s</td>
+<td>0.5-1.0s</td>
 <td>220.5s</td>
 </tr>
 <tr>
@@ -321,7 +364,7 @@ tracks = re.findall(
 <td>189</td>
 <td>189</td>
 <td>0</td>
-<td>0.5–1.0s</td>
+<td>0.5-1.0s</td>
 <td>215.6s</td>
 </tr>
 <tr>
@@ -330,7 +373,7 @@ tracks = re.findall(
 <td>1000</td>
 <td>1000</td>
 <td>0</td>
-<td>0.3–0.7s</td>
+<td>0.3-0.7s</td>
 <td>~900s</td>
 </tr>
 <tr>
@@ -339,7 +382,7 @@ tracks = re.findall(
 <td>1000</td>
 <td>1000</td>
 <td>0</td>
-<td>0.3–0.7s</td>
+<td>0.3-0.7s</td>
 <td>870.6s</td>
 </tr>
 <tr>
@@ -348,7 +391,7 @@ tracks = re.findall(
 <td>5000</td>
 <td>4235</td>
 <td>1*</td>
-<td>0.3–0.5s</td>
+<td>0.3-0.5s</td>
 <td>~1690s</td>
 </tr>
 </tbody>
@@ -376,17 +419,17 @@ tracks = re.findall(
 <tbody>
 <tr>
 <td>Normal (evasion)</td>
-<td>3–8s</td>
+<td>3-8s</td>
 <td>~5.5 chars/min</td>
 </tr>
 <tr>
 <td>Fast (test 1)</td>
-<td>0.5–1.0s</td>
+<td>0.5-1.0s</td>
 <td>~27 chars/min</td>
 </tr>
 <tr>
 <td>Aggressive (test 2)</td>
-<td>0.3–0.7s</td>
+<td>0.3-0.7s</td>
 <td>~33 chars/min</td>
 </tr>
 </tbody>
@@ -398,31 +441,32 @@ tracks = re.findall(
 <p>The rate limiting test script is available at: 
 <a href="https://github.com/1kb2/Outloud/blob/main/ratelimit_test.py">ratelimit_test.py</a></p>
 <hr />
-<h2 id="50-conclusion">5.0 Conclusion</h2>
+<h2 id="50-conclusion">5.0 Conclusion<a class="headerlink" href="#50-conclusion" title="link to this section">&para;</a></h2>
 <p>Outloud demonstrates that a fully functional covert communication channel can be constructed using nothing more than the public features of a mainstream music streaming platform. No vulnerabilities were exploited, no security controls were bypassed, and no malicious content was stored at any point, the channel operates entirely within the boundaries of normal platform usage.</p>
 <p>The key findings of this research are:</p>
 <ul>
 <li>A receiver can decode messages from a public Spotify playlist with zero authentication, using only the HTML meta tags Spotify exposes for social sharing.</li>
 <li>Spotify's internal GraphQL API accepts automated playlist modifications at scale, with no explicit rate limiting observed across 6,624 successful requests. A silent IP-level block was triggered only after ~4,235 consecutive requests at aggressive intervals.</li>
-<li>The shared secret between sender and receiver is a single integer, the sync length — making the channel trivial to establish and difficult to detect without prior knowledge of its existence.</li>
+<li>The shared secret between sender and receiver is a single integer, the sync length - making the channel trivial to establish and difficult to detect without prior knowledge of its existence.</li>
 </ul>
 <p>Outloud is not unique to Spotify. Any platform that exposes ordered, publicly readable data and allows authenticated modifications is a potential candidate for a similar channel. The methodology described in this paper is platform-agnostic, only the implementation details change.</p>
 <p>The tool and all supporting code are available at: 
 <a href="https://github.com/1kb2/outloud">github.com/1kb2/outloud</a> </p>
-<h2 id="whats-next">What's Next</h2>
+<h2 id="whats-next">What's Next<a class="headerlink" href="#whats-next" title="link to this section">&para;</a></h2>
 <ul>
-<li><strong>Weaponizing Outloud</strong> — integrating the channel into an offensive 
+<li><strong>Weaponizing Outloud</strong> - integrating the channel into an offensive 
   toolchain</li>
-<li><strong>Detecting Outloud</strong> — blue team analysis, SIEM rules, and detection 
+<li><strong>Detecting Outloud</strong> - blue team analysis, SIEM rules, and detection 
   engineering</li>
-<li><strong>Beyond Spotify</strong> — applying the methodology to other platforms</li>
+<li><strong>Beyond Spotify</strong> - applying the methodology to other platforms</li>
 </ul>
 <p>Follow this series at <a href="https://1kb2.xyz">1kb2.xyz</a> </p>
-<h2 id="drop-a-star-on-the-repo-if-you-enjoyed-reading-this">⭐ Drop a star on the <a href="https://github.com/1kb2/outloud">repo</a> if you enjoyed reading this :)</h2>
-<h2 id="references">References</h2>
+<p>⭐ Drop a star on the <a href="https://github.com/1kb2/outloud">repo</a> if you enjoyed reading this :)</p>
+<hr />
+<h2 id="references">References<a class="headerlink" href="#references" title="link to this section">&para;</a></h2>
 <p>[1] Taylor &amp; Francis <em>Knowledge Hub Page on Covert Channels</em>, <a href="https://taylorandfrancis.com/knowledge/Engineering_and_technology/Computer_science/Covert_channels/">https://taylorandfrancis.com/knowledge/Engineering_and_technology/Computer_science/Covert_channels/</a></p>
-<p>[2] Wray, J. C. (1991). "An Analysis of Covert Timing Channels." <em>Proceedings of the IEEE Symposium on Research in Security and Privacy</em>, 313–323. Oakland, CA, <a href="https://www.cs.cornell.edu/people/vickyw/iFlow/papers/wra91.pdf">https://www.cs.cornell.edu/people/vickyw/iFlow/papers/wra91.pdf</a></p>
-<p>[3] Lampson, B. W. (1973). "A Note on the Confinement Problem." <em>Communications of the ACM</em>, 16(10), 613–615, <a href="https://doi.org/10.1145/362375.362389">https://doi.org/10.1145/362375.362389</a></p>
+<p>[2] Wray, J. C. (1991). "An Analysis of Covert Timing Channels." <em>Proceedings of the IEEE Symposium on Research in Security and Privacy</em>, 313-323. Oakland, CA, <a href="https://www.cs.cornell.edu/people/vickyw/iFlow/papers/wra91.pdf">https://www.cs.cornell.edu/people/vickyw/iFlow/papers/wra91.pdf</a></p>
+<p>[3] Lampson, B. W. (1973). "A Note on the Confinement Problem." <em>Communications of the ACM</em>, 16(10), 613-615, <a href="https://doi.org/10.1145/362375.362389">https://doi.org/10.1145/362375.362389</a></p>
 <p>[4] Spotify, "Company Info", <a href="https://newsroom.spotify.com/company-info/">https://newsroom.spotify.com/company-info/</a></p>
 <p>[5] Fridrich, J. (2009). <em>Steganography in Digital Media: Principles, Algorithms, and Applications. Cambridge University Press</em>, <a href="https://books.google.it/books?id=wcAZ-QEthqkC&amp;printsec=frontcover#v=onepage&amp;q&amp;f=false">https://books.google.it/books?id=wcAZ-QEthqkC&amp;printsec=frontcover#v=onepage&amp;q&amp;f=false</a></p>
 <p>[6] Schneier, B. (2000). <em>Secrets and Lies: Digital Security in a Networked World. Wiley. page 344</em>, <a href="https://archive.org/details/secretsliesdigit0000schn/">https://archive.org/details/secretsliesdigit0000schn/</a></p>
