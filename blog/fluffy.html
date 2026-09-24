@@ -37,7 +37,7 @@
   <main class="markdown-body">
     <h1>HTB CPTS Track: Fluffy (easy)</h1>
     <p class="post-meta">2026-09-23 &middot; <a class="post-cat" href="index.html#cat-writeups">writeups</a></p>
-    <p class="post-tags"><a class="tag" href="tag/cpts-track.html" data-tag="cpts-track">#cpts-track</a><a class="tag" href="tag/htb.html" data-tag="htb">#htb</a><a class="tag" href="tag/active-directory.html" data-tag="active-directory">#active-directory</a><a class="tag" href="tag/adcs.html" data-tag="adcs">#adcs</a><a class="tag" href="tag/esc16.html" data-tag="esc16">#esc16</a><a class="tag" href="tag/shadow-credentials.html" data-tag="shadow-credentials">#shadow-credentials</a><a class="tag" href="tag/pkinit.html" data-tag="pkinit">#pkinit</a><a class="tag" href="tag/upn-hijack.html" data-tag="upn-hijack">#upn-hijack</a><a class="tag" href="tag/forced-auth.html" data-tag="forced-auth">#forced-auth</a><a class="tag" href="tag/generic-write.html" data-tag="generic-write">#generic-write</a></p>
+    <p class="post-tags"><a class="tag" href="tag/cpts-track.html" data-tag="cpts-track">#cpts-track</a><a class="tag" href="tag/htb.html" data-tag="htb">#htb</a><a class="tag" href="tag/active-directory.html" data-tag="active-directory">#active-directory</a><a class="tag" href="tag/adcs.html" data-tag="adcs">#adcs</a><a class="tag" href="tag/esc16.html" data-tag="esc16">#esc16</a><a class="tag" href="tag/shadow-credentials.html" data-tag="shadow-credentials">#shadow-credentials</a><a class="tag" href="tag/pkinit.html" data-tag="pkinit">#pkinit</a><a class="tag" href="tag/upn-hijack.html" data-tag="upn-hijack">#upn-hijack</a><a class="tag" href="tag/ntlm-leak.html" data-tag="ntlm-leak">#ntlm-leak</a><a class="tag" href="tag/generic-write.html" data-tag="generic-write">#generic-write</a></p>
     <p class="post-abstract">Assumed-breach HTB box: NTLM coercion, shadow credentials, and AD CS ESC16 chained to Domain Admin.</p>
     <details class="toc-box" open>
       <summary>contents</summary>
@@ -253,13 +253,17 @@ certipy<span class="w"> </span>find<span class="w"> </span>-k<span class="w"> </
       ESC16                : Security Extension is disabled.
 </code></pre></div>
 
-<p>Two things line up in that output:
-- <code>Disabled Extensions : 1.3.6.1.4.1.311.25.2</code>, the CA has globally disabled <code>szOID_NTDS_CA_SECURITY_EXT</code>. That extension embeds the requester's <strong>SID</strong> into the certificate for <em>strong</em> mapping. With it gone, the DC falls back to <strong>weak mapping by UPN</strong>, and a UPN is just a mutable string attribute.
-- <code>Enroll : FLUFFY.HTB\Cert Publishers</code>, only Cert Publishers (and admins) can request certificates. <code>ca_svc</code> is in that group; <code>winrm_svc</code> is not. So <strong><code>ca_svc</code> must be the enrollee.</strong></p>
+<p>Two things line up in that output:</p>
+<ul>
+<li><code>Disabled Extensions : 1.3.6.1.4.1.311.25.2</code>, the CA has globally disabled <code>szOID_NTDS_CA_SECURITY_EXT</code>. That extension embeds the requester's <strong>SID</strong> into the certificate for <em>strong</em> mapping. With it gone, the DC falls back to <strong>weak mapping by UPN</strong>, and a UPN is just a mutable string attribute.</li>
+<li><code>Enroll : FLUFFY.HTB\Cert Publishers</code>, only Cert Publishers (and admins) can request certificates. <code>ca_svc</code> is in that group; <code>winrm_svc</code> is not. So <strong><code>ca_svc</code> must be the enrollee.</strong></li>
+</ul>
 <h3 id="the-esc16-exploitation">The ESC16 exploitation<a class="headerlink" href="#the-esc16-exploitation" title="link to this section">&para;</a></h3>
-<p>The plan writes itself from those two facts:
-- <strong>Enrollee</strong> = <code>ca_svc</code> (it has enrollment rights via Cert Publishers).
-- <strong>Writer</strong> = <code>winrm_svc</code> (it has <code>GenericWrite</code> over <code>ca_svc</code>, which includes the <code>userPrincipalName</code> attribute).</p>
+<p>The plan writes itself from those two facts:</p>
+<ul>
+<li><strong>Enrollee</strong> = <code>ca_svc</code> (it has enrollment rights via Cert Publishers).</li>
+<li><strong>Writer</strong> = <code>winrm_svc</code> (it has <code>GenericWrite</code> over <code>ca_svc</code>, which includes the <code>userPrincipalName</code> attribute).</li>
+</ul>
 <p>So I use <code>winrm_svc</code> to set <code>ca_svc</code>'s UPN to <code>administrator</code>, enroll a certificate as <code>ca_svc</code> (which now <em>claims</em> to be administrator), and, because the SID extension is disabled, the DC maps the certificate to the real Administrator.</p>
 <p><strong>1. Hijack <code>ca_svc</code>'s UPN</strong> (authenticating as the writer, <code>winrm_svc</code>):</p>
 <div class="codehilite"><pre><span></span><code><span class="nb">export</span><span class="w"> </span><span class="nv">KRB5CCNAME</span><span class="o">=</span>~/Fluffy/winrm_svc.ccache

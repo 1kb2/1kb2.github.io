@@ -162,6 +162,7 @@ OBSIDIAN_LINK = re.compile(r"(?<!!)\[\[\s*([^\]|]+?)\s*(?:\|\s*([^\]]*?)\s*)?\]\
 
 
 PUNCT_SPACE = re.compile(r"[ \t]+([,;.!?])")
+LIST_ITEM   = re.compile(r"^(\s{0,3})([-*+]|\d+[.)])[ \t]")   # a real list marker (not ---, not -5)
 
 
 def tidy_punctuation(text):
@@ -192,7 +193,8 @@ def prep_markdown(raw):
     raw = OBSIDIAN_IMG.sub(lambda m: "![](images/" + m.group(1).strip() + ")", raw)
     raw = OBSIDIAN_LINK.sub(lambda m: (m.group(2) or m.group(1)).strip(), raw)
     raw = tidy_punctuation(raw)
-    return demote_headings(raw)
+    raw = demote_headings(raw)
+    return ensure_list_spacing(raw)
 
 
 def demote_headings(text):
@@ -220,6 +222,30 @@ def demote_headings(text):
             out.append("#" + ln)
         else:
             out.append(ln)
+    return "\n".join(out)
+
+
+def ensure_list_spacing(text):
+    """python-markdown's `sane_lists` needs a blank line before a list, but
+    Obsidian notes routinely put a list right under a paragraph (e.g. a line
+    ending in ':'). Without the blank line the '- ' items get swallowed into the
+    paragraph and render as literal dashes. Inject that blank line automatically.
+    Fence-aware, and skips indented continuation lines so real lists stay intact."""
+    fence = re.compile(r"^\s*(```|~~~)")
+    out, in_fence, prev = [], False, None
+    for ln in text.split("\n"):
+        if fence.match(ln):
+            in_fence = not in_fence
+            out.append(ln)
+            prev = ln
+            continue
+        if (not in_fence and LIST_ITEM.match(ln) and prev is not None
+                and prev.strip() != ""            # previous line isn't already blank
+                and not LIST_ITEM.match(prev)      # not the 2nd+ item of the same list
+                and not prev[:1].isspace()):       # not an indented continuation line
+            out.append("")                          # inject the missing blank line
+        out.append(ln)
+        prev = ln
     return "\n".join(out)
 
 

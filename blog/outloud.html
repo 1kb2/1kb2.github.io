@@ -91,9 +91,11 @@ findings, and detection considerations for this channel.</p>
 <p>Follow this and additional works at: <a href="https://1kb2.xyz">https://1kb2.xyz</a></p>
 <hr />
 <h3 id="12-what-is-a-covert-channel">1.2 What is a Covert Channel?<a class="headerlink" href="#12-what-is-a-covert-channel" title="link to this section">&para;</a></h3>
-<p><strong>Covert channels</strong> [1] enable secret data transmission through legitimate system resources or protocols, evading detection by hiding communication within normal operations. They fall into:
-* <strong>Timing channels</strong> [2], like inter-packet delays.
-* <strong>Storage channels</strong> [3], like modifying packet headers or in our case leveraging Spotify playlist track ordering.</p>
+<p><strong>Covert channels</strong> [1] enable secret data transmission through legitimate system resources or protocols, evading detection by hiding communication within normal operations. They fall into:</p>
+<ul>
+<li><strong>Timing channels</strong> [2], like inter-packet delays.</li>
+<li><strong>Storage channels</strong> [3], like modifying packet headers or in our case leveraging Spotify playlist track ordering.</li>
+</ul>
 <hr />
 <h3 id="13-why-spotify">1.3 Why Spotify?<a class="headerlink" href="#13-why-spotify" title="link to this section">&para;</a></h3>
 <p>Spotify presents a uniquely attractive platform for covert channel implementation for several reasons. With over 761 million users [4], playlist activity is considered entirely normal behavior that generates no suspicion. Unlike email or messaging platforms, playlist modifications leave no obvious communication trail between two parties.</p>
@@ -124,9 +126,11 @@ findings, and detection considerations for this channel.</p>
 <p>Covert channels are classified into two fundamental categories: storage channels, which encode information in a persistent readable medium, and timing channels, which encode information in the timing of events [2]. </p>
 <p>Implementations vary widely. Common examples include:</p>
 <p><strong>Network protocol channels</strong> leverage the structure of network protocols to hide data. During the SolarWinds compromise (attributed to APT29/SVR), attackers used DNS subdomain encoding to construct randomized subdomains for C2 communication [7]. Similarly, the Ke3chang/APT15 group's Okrum backdoor employed custom HTTP header steganography using <code>Cookie</code> and <code>Set-Cookie</code> fields for C2 [8]. </p>
-<p><strong>Media steganography</strong> hides data within innocent-looking files. 
-- LSB image embedding conceals data in the least significant bits of pixel values in PNG and JPEG files [9]. 
-- Echo audio steganography embeds data into audio signals by varying the amplitude, decay rate, and offset of introduced echoes [10]. </p>
+<p><strong>Media steganography</strong> hides data within innocent-looking files. </p>
+<ul>
+<li>LSB image embedding conceals data in the least significant bits of pixel values in PNG and JPEG files [9]. </li>
+<li>Echo audio steganography embeds data into audio signals by varying the amplitude, decay rate, and offset of introduced echoes [10]. </li>
+</ul>
 <p><strong>Web service abuse</strong> [11] stores malicious payloads directly on legitimate platforms such as Dropbox, GitHub, or Pastebin. While these blend into normal traffic due to the legitimacy of the hosting platform, the payload itself remains detectable through content inspection.</p>
 <p>Outloud differs fundamentally from all of the above, no malicious content is stored anywhere. The message exists only in the semantic ordering of tracks within a normal music playlist, invisible to any content-based detection.</p>
 <h3 id="23-why-social-platforms-are-interesting-targets">2.3 Why social platforms are interesting targets<a class="headerlink" href="#23-why-social-platforms-are-interesting-targets" title="link to this section">&para;</a></h3>
