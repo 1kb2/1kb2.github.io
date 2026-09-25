@@ -2,9 +2,9 @@
 title: "HTB CPTS Track: Fluffy (easy)"
 date: 2026-09-23
 category: writeups
-tags: cpts-track, htb, active-directory, adcs, esc16, shadow-credentials, pkinit, upn-hijack, forced-auth, generic-write
+tags: cpts-track, htb, active-directory, adcs, esc16, shadow-credentials, pkinit, upn-hijack, ntlm-leak, generic-write, windows
 description: "Assumed-breach HTB box: NTLM coercion, shadow credentials, and AD CS ESC16 chained to Domain Admin."
-keywords: ntlm coercion, forced authentication, responder, netntlmv2 hash, cve-2025-24071, library-ms, msds-keycredentiallink, pkinit, pywhisker, gettgtpkinit, generic write, dacl abuse, upn hijacking, weak certificate mapping, szoid_ntds_ca_security_ext, certipy, evil-winrm, kerberos, domain admin
+keywords: ntlm-relay, forced authentication, responder, netntlmv2 hash, cve-2025-24071, library-ms, msds-keycredentiallink, pkinit, pywhisker, gettgtpkinit, generic write, dacl abuse, upn hijacking, weak certificate mapping, szoid_ntds_ca_security_ext, certipy, evil-winrm, kerberos, domain admin
 ---
 
 ![[fluffy1.png]]

