@@ -1,7 +1,7 @@
 ---
 title: "HTB CPTS Track: Jeeves (medium)"
 date: 2026-09-26
-category: writeups
+category: HTB "CPTS Track" writeups
 tags:
   - cpts-track
   - htb

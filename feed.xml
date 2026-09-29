@@ -7,6 +7,13 @@
     <language>en</language>
     <atom:link href="https://1kb2.xyz/feed.xml" rel="self" type="application/rss+xml"/>
     <item>
+      <title>HTB CPTS Track: Trick (easy)</title>
+      <link>https://1kb2.xyz/blog/trick.html</link>
+      <guid isPermaLink="true">https://1kb2.xyz/blog/trick.html</guid>
+      <pubDate>Tue, 29 Sep 2026 00:00:00 +0000</pubDate>
+      <description>Black-box Linux box: a DNS zone transfer leaks hidden vhosts, SQLi and PHP-filter LFI leak creds and the nginx config, mail-log poisoning gives RCE as a user, and a writable fail2ban action escalates to root.</description>
+    </item>
+    <item>
       <title>HTB CPTS Track: Jeeves (medium)</title>
       <link>https://1kb2.xyz/blog/jeeves.html</link>
       <guid isPermaLink="true">https://1kb2.xyz/blog/jeeves.html</guid>
@@ -18,7 +25,7 @@
       <link>https://1kb2.xyz/blog/fluffy.html</link>
       <guid isPermaLink="true">https://1kb2.xyz/blog/fluffy.html</guid>
       <pubDate>Wed, 23 Sep 2026 00:00:00 +0000</pubDate>
-      <description>Assumed-breach HTB box: NTLM coercion, shadow credentials, and AD CS ESC16 chained to Domain Admin.</description>
+      <description>Assumed-breach Windows box: NTLM coercion, shadow credentials, and AD CS ESC16 chained to Domain Admin.</description>
     </item>
     <item>
       <title>OutLoud: One Loud Covert Channel</title>

