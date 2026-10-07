@@ -1,7 +1,7 @@
 ---
 title: "HTB CPTS Track: Postman (easy)"
 date: 2026-10-02
-category: writeups
+category: HTB "CPTS Track" writeups
 tags:
   - cpts-track
   - htb
@@ -9,11 +9,9 @@ tags:
   - redis
   - ssh-key-injection
   - password-cracking
-  - password-reuse
   - webmin
   - cve-2019-12840
-  - metasploit
-  - privilege-escalation
+  - linux-privilege-escalation
 description: "Black-box Linux box: an unauthenticated Redis instance lets me write my own SSH key for a foothold, a backed-up encrypted private key cracks to a reused password for user, and Webmin 1.910 (CVE-2019-12840) running as root gives up a root shell."
 keywords: redis-4.0.9, unauthenticated-redis, redis-cli, ssh-key-injection, config set dir, config set dbfilename, id_rsa.bak, ssh2john, john the ripper, rockyou, encrypted rsa private key, passphrase cracking, password-reuse, webmin 1.910, miniserv, cve-2019-12840, webmin package updates rce, metasploit, webmin_packageup_rce, reverse_perl, ssl option, apache 2.4.29, openssh 7.6p1
 ---
