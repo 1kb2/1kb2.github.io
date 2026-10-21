@@ -7,6 +7,20 @@
     <language>en</language>
     <atom:link href="https://1kb2.xyz/feed.xml" rel="self" type="application/rss+xml"/>
     <item>
+      <title>HTB CPTS Track: Media (medium)</title>
+      <link>https://1kb2.xyz/blog/media.html</link>
+      <guid isPermaLink="true">https://1kb2.xyz/blog/media.html</guid>
+      <pubDate>Wed, 21 Oct 2026 00:00:00 +0000</pubDate>
+      <description>Black-box Windows box: a &#x27;WMP-compatible&#x27; upload form takes an ASX/WAX playlist that coerces NTLM auth to Responder, the cracked user hash gives SSH, a XAMPP directory junction turns the upload folder into the web root for a PHP webshell as local service, and SeTcbPrivilege adds the user to Administrators for root.</description>
+    </item>
+    <item>
+      <title>HTB CPTS Track: TombWatcher (medium)</title>
+      <link>https://1kb2.xyz/blog/tombwatcher.html</link>
+      <guid isPermaLink="true">https://1kb2.xyz/blog/tombwatcher.html</guid>
+      <pubDate>Wed, 21 Oct 2026 00:00:00 +0000</pubDate>
+      <description>Assumed-breach AD box: a BloodHound ACL chain (WriteSPN kerberoast, a gMSA read, ForceChangePassword, WriteOwner) walks henry to john, then john restores a tombstoned cert_admin and abuses ADCS ESC15 (EKUwu) to mint an Administrator certificate for Domain Admin.</description>
+    </item>
+    <item>
       <title>HTB CPTS Track: Pov (medium)</title>
       <link>https://1kb2.xyz/blog/pov.html</link>
       <guid isPermaLink="true">https://1kb2.xyz/blog/pov.html</guid>
