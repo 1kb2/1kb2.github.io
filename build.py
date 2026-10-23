@@ -24,6 +24,11 @@ SITE_URL   = "https://1kb2.xyz"
 SITE_TITLE = "1kb2"
 SITE_DESC  = "Cybersecurity portfolio. Practical learning, security research, hands-on technical projects."
 
+# Categories pinned to the top of the blog index, in this exact order. Everything
+# not listed here falls below them, ordered by its most-recent post. Add future
+# "main" sections here - match the `category:` value from the post frontmatter.
+PINNED_CATEGORIES = ["research"]
+
 ROOT   = Path(__file__).parent
 POSTS  = ROOT / "posts"
 BLOG   = ROOT / "blog"
@@ -296,6 +301,9 @@ def read_post(path):
         "slug":     scalar(meta.get("slug")) or slugify(path.stem),
         "title":    title,
         "date":     date,
+        # tiebreaker when two posts share the same date: the file you saved most
+        # recently wins (the build runs locally, so this is your real edit order).
+        "mtime":    path.stat().st_mtime,
         "desc":     scalar(meta.get("description")),
         "body":     body,
         "category": category,
@@ -405,18 +413,23 @@ def post_row(p):
 
 
 def write_index(posts):
-    # Group by category, categories ordered by their most-recent post (posts are
+    # Group by category. Pinned categories (PINNED_CATEGORIES) come first in that
+    # listed order; the rest follow ordered by their most-recent post (posts are
     # already newest-first, so the first post in each bucket is its newest).
     buckets = {}
     for p in posts:
         buckets.setdefault(p["category"], []).append(p)
-    ordered = sorted(buckets.items(), key=lambda kv: kv[1][0]["date"], reverse=True)
+    pinned = [(c, pl) for c, pl in buckets.items() if c in PINNED_CATEGORIES]
+    pinned.sort(key=lambda kv: PINNED_CATEGORIES.index(kv[0]))
+    rest = [(c, pl) for c, pl in buckets.items() if c not in PINNED_CATEGORIES]
+    rest.sort(key=lambda kv: kv[1][0]["date"], reverse=True)
+    ordered = pinned + rest
 
     sections = "\n".join(
-        f'    <section class="cat" id="cat-{slugify(cat)}" data-cat="{slugify(cat)}">\n'
-        f'      <h2 class="cat-h">{html.escape(cat)}</h2>\n'
+        f'    <details class="cat" id="cat-{slugify(cat)}" data-cat="{slugify(cat)}">\n'
+        f'      <summary class="cat-h"><h2 class="cat-h-t">{html.escape(cat)}</h2></summary>\n'
         f'      <ul class="posts">\n' + "\n".join(post_row(p) for p in plist) +
-        f'\n      </ul>\n    </section>'
+        f'\n      </ul>\n    </details>'
         for cat, plist in ordered
     ) or '    <p class="post-meta">nothing here yet.</p>'
 
@@ -535,7 +548,7 @@ def main():
 
     posts = sorted(
         (read_post(f) for f in POSTS.glob("*.md")),
-        key=lambda p: p["date"],
+        key=lambda p: (p["date"], p["mtime"]),   # date first, newest-saved file breaks ties
         reverse=True,
     )
 
