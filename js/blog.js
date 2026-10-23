@@ -50,8 +50,11 @@
       r.hidden = !vis;
       if (vis) shown++;
     });
+    var filtering = !!(activeTag || q);
     sections.forEach(function (s) {
-      s.hidden = !s.querySelector(".post:not([hidden])");   // hide empty groups
+      var hasMatch = !!s.querySelector(".post:not([hidden])");
+      s.hidden = !hasMatch;                      // hide empty groups
+      s.open = filtering ? hasMatch : false;     // expand matches; else collapsed default
     });
     if (empty) empty.hidden = shown !== 0;
     if (status) {
